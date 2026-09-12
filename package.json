@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "check-queue": "node scripts/check-queue-telemetry.mjs"
+    "check-queue": "node scripts/check-queue-telemetry.mjs",
+    "verify-github-token": "node scripts/verify-github-token.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

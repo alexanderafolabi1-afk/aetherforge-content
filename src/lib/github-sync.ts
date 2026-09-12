@@ -76,6 +76,124 @@ export interface SyncResult {
   commitUrl?: string;
 }
 
+function checkFilePath(queuePath: string): string {
+  const idx = queuePath.lastIndexOf("/");
+  const dir = idx === -1 ? "" : queuePath.slice(0, idx + 1);
+  return `${dir}.aetherforge-sync-check.json`;
+}
+
+export interface VerifyResult {
+  ok: boolean;
+  message: string;
+  details: {
+    tokenPresent: boolean;
+    targetOwner: string;
+    targetRepo: string;
+    canReadRepo: boolean;
+    canReadQueuePath: boolean;
+    canWrite: boolean;
+  };
+}
+
+/**
+ * Proves the stored token actually works against the configured repo — a
+ * real read AND a real write, not just "is a token saved." The write half
+ * touches a dedicated marker file (`.aetherforge-sync-check.json`, next to
+ * the queue file), never the real content-queue.json, so verifying can
+ * never corrupt or overwrite real queue data.
+ */
+export async function verifyGithubSyncConnection(): Promise<VerifyResult> {
+  const config = getGithubSyncConfig();
+  const details = {
+    tokenPresent: Boolean(config?.token),
+    targetOwner: config?.owner ?? "",
+    targetRepo: config?.repo ?? "",
+    canReadRepo: false,
+    canReadQueuePath: false,
+    canWrite: false,
+  };
+
+  if (!config) {
+    return { ok: false, message: "GitHub Sync isn't configured — nothing to verify.", details };
+  }
+  const { owner, repo, branch, path, token } = config;
+
+  try {
+    const repoRes = await githubRequest(`https://api.github.com/repos/${owner}/${repo}`, token);
+    if (!repoRes.ok) {
+      const message =
+        repoRes.status === 401 || repoRes.status === 403
+          ? `Token rejected (${repoRes.status}). Check its scope and expiry.`
+          : `Repo not reachable (${repoRes.status}). Check owner/repo.`;
+      return { ok: false, message, details };
+    }
+    details.canReadRepo = true;
+  } catch {
+    return { ok: false, message: "Network error reaching GitHub.", details };
+  }
+
+  const queueUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`;
+  try {
+    const queueRes = await githubRequest(queueUrl, token);
+    details.canReadQueuePath = queueRes.ok || queueRes.status === 404;
+    if (!details.canReadQueuePath) {
+      return {
+        ok: false,
+        message: `Can't read ${path} (${queueRes.status}). Check the path/branch.`,
+        details,
+      };
+    }
+  } catch {
+    return { ok: false, message: "Network error checking the queue path.", details };
+  }
+
+  const checkPath = checkFilePath(path);
+  const checkUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${checkPath}`;
+  try {
+    let sha: string | undefined;
+    const getRes = await githubRequest(`${checkUrl}?ref=${encodeURIComponent(branch)}`, token);
+    if (getRes.ok) {
+      const data = (await getRes.json()) as { sha?: string };
+      sha = data.sha;
+    } else if (getRes.status !== 404) {
+      return { ok: false, message: `Write check failed reading ${checkPath} (${getRes.status}).`, details };
+    }
+
+    const payload = {
+      ok: true,
+      checkedAt: new Date().toISOString(),
+      note: "Written by AetherForge Command Deck's GitHub Sync connection check. Safe to delete.",
+    };
+    const putRes = await githubRequest(checkUrl, token, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "chore: verify GitHub Sync connection (safe to delete)",
+        content: utf8ToBase64(JSON.stringify(payload, null, 2)),
+        branch,
+        ...(sha ? { sha } : {}),
+      }),
+    });
+    if (!putRes.ok) {
+      const errBody = (await putRes.json().catch(() => null)) as { message?: string } | null;
+      return {
+        ok: false,
+        message: `Write check failed (${putRes.status}${errBody?.message ? `: ${errBody.message}` : ""}).`,
+        details,
+      };
+    }
+    details.canWrite = true;
+  } catch {
+    return { ok: false, message: "Network error during the write check.", details };
+  }
+
+  return {
+    ok: true,
+    message: `Verified: read and write both work against ${owner}/${repo}.`,
+    details,
+  };
+}
+
 /** Commits `queue` to the configured repo/path, creating or updating the file as needed. */
 export async function syncQueueToGithub(queue: unknown): Promise<SyncResult> {
   const config = getGithubSyncConfig();

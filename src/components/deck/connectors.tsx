@@ -17,9 +17,12 @@ import {
   getGithubSyncConfig,
   hasGithubSyncConfig,
   saveGithubSyncConfig,
+  verifyGithubSyncConnection,
+  type VerifyResult,
 } from "@/lib/github-sync";
 import { clearPin } from "@/lib/pin";
 import { useDeckStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
 export function ConnectorsDialog({
   open,
@@ -39,6 +42,8 @@ export function ConnectorsDialog({
   const [ghPath, setGhPath] = useState("data/content-queue.json");
   const [ghToken, setGhToken] = useState("");
   const [ghConfigured, setGhConfigured] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -49,6 +54,7 @@ export function ConnectorsDialog({
     setGhPath(existing?.path ?? "data/content-queue.json");
     setGhToken("");
     setGhConfigured(hasGithubSyncConfig());
+    setVerifyResult(null);
   }, [open]);
 
   return (
@@ -172,22 +178,61 @@ export function ConnectorsDialog({
               Save
             </Button>
             {ghConfigured ? (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={async () => {
-                  const ok = await requestPinConfirm("clear the GitHub Sync token");
-                  if (!ok) return;
-                  clearGithubSyncConfig();
-                  setGhConfigured(false);
-                  setGhToken("");
-                  toast("GitHub Sync cleared.");
-                }}
-              >
-                Clear
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={verifying}
+                  onClick={async () => {
+                    const ok = await requestPinConfirm("verify the GitHub Sync connection");
+                    if (!ok) return;
+                    setVerifying(true);
+                    setVerifyResult(null);
+                    const result = await verifyGithubSyncConnection();
+                    setVerifying(false);
+                    setVerifyResult(result);
+                    toast(result.message);
+                  }}
+                >
+                  {verifying ? "Verifying…" : "Verify connection"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    const ok = await requestPinConfirm("clear the GitHub Sync token");
+                    if (!ok) return;
+                    clearGithubSyncConfig();
+                    setGhConfigured(false);
+                    setGhToken("");
+                    setVerifyResult(null);
+                    toast("GitHub Sync cleared.");
+                  }}
+                >
+                  Clear
+                </Button>
+              </>
             ) : null}
           </div>
+          {verifyResult ? (
+            <div
+              className={cn(
+                "mt-2 rounded-lg border p-2 text-[11px] leading-relaxed",
+                verifyResult.ok
+                  ? "border-success/30 bg-success/5 text-success"
+                  : "border-destructive/30 bg-destructive/5 text-destructive",
+              )}
+            >
+              <p className="font-medium">{verifyResult.ok ? "✓ Verified" : "✕ Verification failed"}</p>
+              <p className="mt-0.5 text-muted-foreground">{verifyResult.message}</p>
+              <ul className="mt-1 space-y-0.5 text-muted-foreground">
+                <li>Token present: {verifyResult.details.tokenPresent ? "yes" : "no"}</li>
+                <li>Repo reachable: {verifyResult.details.canReadRepo ? "yes" : "no"}</li>
+                <li>Queue path reachable: {verifyResult.details.canReadQueuePath ? "yes" : "no"}</li>
+                <li>Write round-trip: {verifyResult.details.canWrite ? "passed" : "failed"}</li>
+              </ul>
+            </div>
+          ) : null}
         </div>
 
         <div className="rounded-xl border border-border p-3">
