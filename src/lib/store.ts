@@ -24,6 +24,9 @@ export interface Celebration {
 interface DeckStore extends DeckData {
   hydrated: boolean;
   celebration: Celebration | null;
+  /** Manual status flag for the header toggle — not a live ping of any n8n webhook. */
+  automationActive: boolean;
+  toggleAutomation: () => void;
   markHydrated: () => void;
   setCommanderName: (name: string) => void;
   patchStats: (patch: Partial<Stats>) => void;
@@ -101,6 +104,8 @@ export const useDeckStore = create<DeckStore>()(
       ...seedDeck,
       hydrated: false,
       celebration: null,
+      automationActive: false,
+      toggleAutomation: () => set({ automationActive: !get().automationActive }),
       markHydrated: () => set({ hydrated: true }),
       setCommanderName: (commanderName) => set({ commanderName }),
       patchStats: (patch) => {
@@ -266,6 +271,7 @@ export const useDeckStore = create<DeckStore>()(
         verticals: state.verticals,
         streak: state.streak,
         contentQueue: state.contentQueue,
+        automationActive: state.automationActive,
       }),
     },
   ),

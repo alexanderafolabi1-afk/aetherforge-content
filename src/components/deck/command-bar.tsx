@@ -7,8 +7,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { APP_NAME } from "@/lib/copy";
-import { todayKey } from "@/lib/utils";
+import { cn, todayKey } from "@/lib/utils";
 import { useDeckStore } from "@/lib/store";
 
 export function CommandBar({
@@ -18,6 +19,8 @@ export function CommandBar({
 }) {
   const streak = useDeckStore((s) => s.streak);
   const checkIn = useDeckStore((s) => s.checkIn);
+  const automationActive = useDeckStore((s) => s.automationActive);
+  const toggleAutomation = useDeckStore((s) => s.toggleAutomation);
   const checked = streak.todayKey === todayKey();
 
   return (
@@ -44,6 +47,39 @@ export function CommandBar({
           >
             <RefreshCw className="size-4" />
           </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-pressed={automationActive}
+                aria-label="Toggle automation status"
+                onClick={toggleAutomation}
+                className={cn(
+                  "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors",
+                  automationActive
+                    ? "border-success/40 bg-success/10 text-success"
+                    : "border-border text-muted-foreground hover:bg-secondary",
+                )}
+              >
+                <span
+                  className={cn(
+                    "size-2 shrink-0 rounded-full",
+                    automationActive ? "animate-pulse bg-success" : "bg-muted-foreground/50",
+                  )}
+                  aria-hidden
+                />
+                <span className="hidden sm:inline">
+                  {automationActive ? "Automation live" : "Automation idle"}
+                </span>
+                <span className="sm:hidden">{automationActive ? "Live" : "Idle"}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-64 text-center">
+              {automationActive
+                ? "Marked as listening. Toggle off if you pause the n8n workflow."
+                : "Toggle on once your n8n webhook workflow is active. This is a manual status flag, not a live ping — the browser never talks to n8n directly."}
+            </TooltipContent>
+          </Tooltip>
           <Badge variant={checked ? "gold" : "primary"} className="h-8 gap-1 px-2 sm:px-2.5">
             <Flame className="size-3" />
             <span className="tabular-nums normal-case tracking-normal">
