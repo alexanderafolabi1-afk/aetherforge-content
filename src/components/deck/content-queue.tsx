@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { CalendarClock, Check, Download, Plus, Trash2, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { CalendarClock, Check, CloudUpload, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,9 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { formatScheduled } from "@/lib/format";
+import { hasGithubSyncConfig, syncQueueToGithub } from "@/lib/github-sync";
 import { useDeckStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
 import {
   POST_LANGUAGE_LABEL,
   type PostLanguage,
@@ -88,30 +90,8 @@ function defaultScheduleValue() {
   return toLocalInputValue(d);
 }
 
-/**
- * Downloads the live queue as content-queue.json, ready to commit into data/
- * for the automation layer (see AUTOMATION_GUIDE.md).
- *
- * The PIN check lives inside this function, not just at the call site — no
- * download can happen without a confirmed PIN, regardless of what calls it.
- */
-async function exportQueueJson(
-  queue: ScheduledPost[],
-  requestPinConfirm: (actionLabel: string) => Promise<boolean>,
-): Promise<boolean> {
-  const ok = await requestPinConfirm("export the content queue");
-  if (!ok) return false;
-
-  const blob = new Blob([JSON.stringify(queue, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "content-queue.json";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  return true;
+function formatSyncTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
 export function ContentQueuePanel({
@@ -132,12 +112,40 @@ export function ContentQueuePanel({
   const [vertical, setVertical] = useState(verticals[0]?.name ?? "Threads");
   const [language, setLanguage] = useState<PostLanguage>("en");
   const [scheduledFor, setScheduledFor] = useState(defaultScheduleValue());
-  const [exporting, setExporting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<{ ok: boolean; message: string; at: string } | null>(
+    null,
+  );
+  const skipFirstAutoSync = useRef(true);
+  const ghConfigured = hasGithubSyncConfig();
 
   const ordered = [...queue].sort(
     (a, b) => Date.parse(a.scheduledFor) - Date.parse(b.scheduledFor),
   );
   const previewLanguages = Array.from(new Set(ordered.map((p) => p.language)));
+
+  const runSync = async (queueToSync: ScheduledPost[], auto: boolean) => {
+    setSyncing(true);
+    const result = await syncQueueToGithub(queueToSync);
+    setSyncing(false);
+    setSyncStatus({ ok: result.ok, message: result.message, at: new Date().toISOString() });
+    if (!auto || !result.ok) toast(result.message);
+    return result;
+  };
+
+  // Zero-friction bridge: once GitHub Sync is configured, every queue change
+  // auto-commits (debounced) — no export/upload cycle to remember.
+  useEffect(() => {
+    if (skipFirstAutoSync.current) {
+      skipFirstAutoSync.current = false;
+      return;
+    }
+    if (!hasGithubSyncConfig()) return;
+    const timeout = setTimeout(() => {
+      void runSync(queue, true);
+    }, 2500);
+    return () => clearTimeout(timeout);
+  }, [queue]);
 
   return (
     <Card className="h-full" id="content-queue">
@@ -145,23 +153,33 @@ export function ContentQueuePanel({
         <div>
           <CardTitle>Launch queue</CardTitle>
           <CardDescription>Transmissions staged for the automation layer to fire.</CardDescription>
+          {syncStatus ? (
+            <p className={cn("mt-1 text-[11px]", syncStatus.ok ? "text-success" : "text-destructive")}>
+              {syncStatus.ok ? "Synced to GitHub" : "Sync failed"} · {formatSyncTime(syncStatus.at)}
+            </p>
+          ) : !ghConfigured ? (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Not connected — set up GitHub Sync in Connectors.
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <Button
             size="sm"
             variant="outline"
-            disabled={queue.length === 0 || exporting}
+            disabled={syncing}
             onClick={async () => {
-              setExporting(true);
-              const didExport = await exportQueueJson(queue, requestPinConfirm);
-              setExporting(false);
-              if (didExport) {
-                toast("Queue exported. Commit it to data/content-queue.json — see AUTOMATION_GUIDE.md.");
+              if (!hasGithubSyncConfig()) {
+                toast("GitHub Sync isn't set up yet — configure it in Connectors.");
+                return;
               }
+              const ok = await requestPinConfirm("sync the content queue to GitHub");
+              if (!ok) return;
+              await runSync(queue, false);
             }}
           >
-            <Download className="size-3.5" />
-            Export
+            <CloudUpload className="size-3.5" />
+            {syncing ? "Syncing…" : "Sync to GitHub"}
           </Button>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>

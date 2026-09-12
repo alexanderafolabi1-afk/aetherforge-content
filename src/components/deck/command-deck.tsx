@@ -115,7 +115,11 @@ export function CommandDeck() {
             </TabsContent>
           </Tabs>
         </div>
-        <ConnectorsDialog open={connectors} onOpenChange={setConnectors} />
+        <ConnectorsDialog
+          open={connectors}
+          onOpenChange={setConnectors}
+          requestPinConfirm={requestPinConfirm}
+        />
         <PinConfirmDialog open={pinDialogOpen} actionLabel={pinActionLabel} onResult={handlePinResult} />
         {celebration ? (
           <CelebrationOverlay event={celebration} onDismiss={dismiss} />
