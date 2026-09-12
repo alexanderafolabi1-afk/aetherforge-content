@@ -1,24 +1,12 @@
-import { Flame, Plus, RefreshCw, Satellite, Settings2 } from "lucide-react";
+import { Flame, Menu, RefreshCw, Satellite } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { APP_NAME } from "@/lib/copy";
 import { cn, todayKey } from "@/lib/utils";
 import { useDeckStore } from "@/lib/store";
 
-export function CommandBar({
-  onOpenConnectors,
-  onNavigateToLog,
-}: {
-  onOpenConnectors: () => void;
-  onNavigateToLog: () => void;
-}) {
+export function CommandBar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const streak = useDeckStore((s) => s.streak);
   const checkIn = useDeckStore((s) => s.checkIn);
   const automationActive = useDeckStore((s) => s.automationActive);
@@ -29,6 +17,14 @@ export function CommandBar({
     <header className="safe-top sticky top-0 z-40 border-b border-border/80 bg-background/75 backdrop-blur-md">
       <div className="safe-px mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
+          <button
+            type="button"
+            aria-label="Open menu"
+            onClick={onToggleSidebar}
+            className="grid size-9 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-secondary lg:hidden"
+          >
+            <Menu className="size-4" />
+          </button>
           <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-primary shadow-[var(--shadow-border)]">
             <Satellite className="size-4" />
           </span>
@@ -98,22 +94,6 @@ export function CommandBar({
           >
             {checked ? "Orbit locked" : "Daily check-in"}
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="outline" aria-label="Quick log">
-                <Plus className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={onNavigateToLog}>
-                Log a haul / note
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={onOpenConnectors}>
-                <Settings2 className="size-4" />
-                Connectors
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
     </header>

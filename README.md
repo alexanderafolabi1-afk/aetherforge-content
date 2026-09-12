@@ -21,8 +21,9 @@ This is the live **Command Deck** (the dashboard you open every day). Data lives
 | **Top posts** | This week’s best transmissions. |
 | **Mission log** | Hand-log hauls, notes, and telemetry until X/Sheets/Stripe are connected. |
 | **Connectors** | Instructions for docking live APIs later. Nothing secret lives in the browser. |
-| **Executive Briefing tab** | A second screen (Deck / Briefing switcher) with an automated morning summary: engagement velocity, follower growth pace, estimated revenue, and top-performing verticals — all derived from live store data. |
-| **Admin PIN lock** | Prompts for a PIN on first open (and every fresh app open after that), plus re-confirms it before Export and Commit telemetry. A local screen lock for a shared/borrowed device — not real account security. Reset it from Connectors. |
+| **Executive Briefing** | A dedicated page with an automated morning summary: engagement velocity, follower growth pace, estimated revenue, and top-performing verticals — all derived from live store data. |
+| **Admin PIN lock** | Prompts for a PIN on first open (and every fresh app open after that), plus re-confirms it before restricted actions (GitHub Sync, telemetry commits). A local screen lock for a shared/borrowed device — not real account security. Reset it from Connectors, or use **Logout** in the sidebar to re-lock without wiping the PIN. |
+| **Sidebar navigation** | Five pages — Overview, Growth, Launch Queue, Mission Log, Briefing — behind a responsive sidebar (persistent on wide screens, a slide-out drawer via the header's menu button on mobile). |
 
 Numbers persist in `localStorage` under the key `aetherforge-command-deck`.
 
@@ -56,7 +57,8 @@ aetherforge-content/
 │   │   └── github-sync.ts     Direct browser → GitHub Contents API commit
 │   ├── components/ui/         Buttons, cards, dialogs (Radix)
 │   └── components/deck/       The actual observatory
-│       ├── command-deck.tsx   Layout
+│       ├── command-deck.tsx   Layout + page routing (5 pages)
+│       ├── sidebar.tsx        Nav (persistent desktop / drawer mobile) + Logout
 │       ├── hero.tsx           Starfield greeting + astronaut
 │       ├── stats-grid.tsx     Big numbers
 │       ├── orbit.tsx          Solar-system progress
@@ -64,8 +66,8 @@ aetherforge-content/
 │       ├── galaxy-map.tsx     Planets / verticals
 │       ├── top-posts.tsx      Content highlights
 │       ├── log-panel.tsx      Haul / note / telemetry forms
-│       ├── executive-briefing.tsx  Morning summary (Briefing tab)
-│       ├── pin-gate.tsx       Full-screen PIN lock on app open
+│       ├── executive-briefing.tsx  Morning summary (Briefing page)
+│       ├── pin-gate.tsx       Full-screen PIN lock on app open + Logout hook
 │       ├── pin-confirm-dialog.tsx  Re-confirm PIN for restricted actions
 │       └── celebration.tsx    Full-screen win moment
 └── .github/workflows/pages.yml  Auto-publish to GitHub Pages

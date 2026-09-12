@@ -79,3 +79,8 @@ export function isSessionUnlocked(): boolean {
 export function markSessionUnlocked(): void {
   sessionStorage.setItem(SESSION_KEY, "1");
 }
+
+/** Logout: clears only the "unlocked this session" flag — the configured PIN itself is untouched, so next open asks for the existing PIN rather than forcing setup again. */
+export function clearSessionUnlock(): void {
+  sessionStorage.removeItem(SESSION_KEY);
+}

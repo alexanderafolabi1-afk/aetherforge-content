@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   clearPin,
+  clearSessionUnlock,
   hasStoredPin,
   isSessionUnlocked,
   markSessionUnlocked,
@@ -15,7 +16,7 @@ import {
 const MAX_ATTEMPTS = 5;
 const COOLDOWN_MS = 30_000;
 
-export function PinGate({ children }: { children: ReactNode }) {
+export function PinGate({ children }: { children: (logout: () => void) => ReactNode }) {
   const [ready, setReady] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
   const [needsSetup, setNeedsSetup] = useState(false);
@@ -32,8 +33,16 @@ export function PinGate({ children }: { children: ReactNode }) {
     setReady(true);
   }, []);
 
+  const handleLogout = () => {
+    clearSessionUnlock();
+    setUnlocked(false);
+    setPinValue("");
+    setConfirmPin("");
+    setError(null);
+  };
+
   if (!ready) return null;
-  if (unlocked) return <>{children}</>;
+  if (unlocked) return <>{children(handleLogout)}</>;
 
   const inCooldown = cooldownUntil !== null && Date.now() < cooldownUntil;
 
@@ -49,6 +58,9 @@ export function PinGate({ children }: { children: ReactNode }) {
       return;
     }
     await setPin(pin);
+    setNeedsSetup(false);
+    setPinValue("");
+    setConfirmPin("");
     markSessionUnlocked();
     setUnlocked(true);
   };
