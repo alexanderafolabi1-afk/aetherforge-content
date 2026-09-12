@@ -66,6 +66,8 @@ Click **Save** (PIN-confirmed, same as every restricted action here). From this 
 
 The panel shows a live status line ("Synced to GitHub · 2:14 PM" or "Sync failed") so you always know whether the bridge is actually working — it isn't a silent fire-and-forget.
 
+**Before relying on it, click Verify connection** (next to Save/Clear). It performs a real read *and* write test — reading the repo, reading the configured queue path, then writing to a small dedicated marker file (`.aetherforge-sync-check.json`, next to the queue path) so the check can never touch or corrupt your real queue data. It reports token/repo/path/write status individually, so a failure tells you exactly which part is wrong. Prefer to check a token before it ever touches the browser? `npm run verify-github-token` (with `GITHUB_TOKEN=...` set) runs the identical check from the command line.
+
 ### 3. Import the n8n workflow
 
 1. Open your n8n instance → **Workflows → Import from File**
@@ -127,7 +129,8 @@ A non-zero exit code means either a shape problem or something overdue — treat
 - Queue data model: `src/lib/types.ts` (`ScheduledPost`, `PostLanguage`)
 - Queue actions: `src/lib/store.ts` (`queuePost`, `markQueuePosted`, `skipQueuedPost`, `removeQueuedPost`, `nextQueuedPost`)
 - Queue UI: `src/components/deck/content-queue.tsx` (Launch queue panel, Queue/Preview tabs, Sync to GitHub)
-- GitHub Sync: `src/lib/github-sync.ts` (config storage + the direct commit flow), settings UI in `src/components/deck/connectors.tsx`
+- GitHub Sync: `src/lib/github-sync.ts` (config storage, the direct commit flow, `verifyGithubSyncConnection`), settings UI in `src/components/deck/connectors.tsx`
+- Token pre-flight check: `scripts/verify-github-token.mjs` (`npm run verify-github-token`)
 - Next-up preview: `src/components/deck/upcoming-post.tsx`
 - Automation status toggle: `src/components/deck/command-bar.tsx` (`automationActive` / `toggleAutomation`) — manual flag, not a live n8n health check
 - Telemetry check script: `scripts/check-queue-telemetry.mjs` (`npm run check-queue`)
