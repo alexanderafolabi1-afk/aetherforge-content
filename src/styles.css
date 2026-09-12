@@ -43,11 +43,15 @@
 
 @layer base {
   html {
+    width: 100%;
+    overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   body {
+    width: 100%;
+    overflow-x: hidden;
     background: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
