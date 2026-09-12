@@ -80,13 +80,13 @@ The panel shows a live status line ("Synced to GitHub · 2:14 PM" or "Sync faile
 
 The template ships fully wired, not a skeleton:
 - **Schedule Trigger** (every 15 minutes) — n8n's own "Execute workflow" button covers manual testing, so there's no separate webhook trigger to configure
-- **Fetch Content Queue (GitHub)** — one GET that returns both the file content and its `sha`
+- **Fetch Content Queue (GitHub)** — one GET that returns both the file content and its `sha`. Auto-retries 3x on transient failures (rate limits, blips) — this call is read-only, so retrying is always safe.
 - **Decode & Filter Due Posts** (Code node) — decodes the file, keeps only `queued` items whose `scheduledFor` has passed
-- **Post to X via OpenTweet** — the one placeholder left: OpenTweet's real endpoint/auth isn't something this guide can verify, so update the URL and auth against their actual docs before activating
+- **Post to X via OpenTweet** — the one placeholder left: OpenTweet's real endpoint/auth isn't something this guide can verify, so update the URL and auth against their actual docs before activating. Deliberately does **not** auto-retry: retrying a create-tweet call on a lost response could double-post to X, so a genuine failure here just waits for the next scheduled run instead.
 - **Build Updated Queue** (Code node) — merges `status: "posted"` back into the full queue and base64-encodes it; if nothing was due, it outputs nothing and skips the commit entirely
-- **Mark Posted (GitHub commit)** — writes the result back, using the real `sha`/`content`/`message` from the previous node
+- **Mark Posted (GitHub commit)** — writes the result back, using the real `sha`/`content`/`message` from the previous node. Also auto-retries 3x — this write is idempotent, and X already has the post regardless of whether the commit lands on the first try.
 
-No Code node is left as an exercise — both are implemented and tested (see the repo's own verification in the commit that introduced this template).
+No Code node is left as an exercise — both are implemented and tested (see the repo's own verification in the commit that introduced this template). No manual intervention is needed for a normal run: the only human steps are the one-time credential setup above and confirming OpenTweet's real endpoint.
 
 ### 4. Test before activating
 

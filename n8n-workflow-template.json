@@ -3,9 +3,9 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## AetherForge auto-poster (simplified)\n\n1. Import this workflow. Add 2 credentials: **GitHub Contents Token** (fine-grained PAT, Contents: Read and write, scoped to this one repo) and **OpenTweet API Key**.\n2. The Fetch / Mark Posted node URLs already point at this repo (alexanderafolabi1-afk/aetherforge-content). Editing them is only needed if you forked the repo.\n3. Point **Post to X via OpenTweet** at OpenTweet's real endpoint/auth scheme — the URL here is a placeholder; there's no verified public spec to hardcode against.\n4. Test with **Execute workflow**, then toggle **Active**. No file exports, no Code node left for you to write — it's all wired.\n\nThe Command Deck's Connectors → GitHub Sync now commits the queue directly from the PWA. Nobody needs to touch data/content-queue.json by hand anymore — see AUTOMATION_GUIDE.md.",
-        "height": 320,
-        "width": 360
+        "content": "## AetherForge auto-poster (simplified)\n\n1. Import this workflow. Add 2 credentials: **GitHub Contents Token** (fine-grained PAT, Contents: Read and write, scoped to this one repo) and **OpenTweet API Key**.\n2. The Fetch / Mark Posted node URLs already point at this repo (alexanderafolabi1-afk/aetherforge-content). Editing them is only needed if you forked the repo.\n3. Point **Post to X via OpenTweet** at OpenTweet's real endpoint/auth scheme — the URL here is a placeholder; there's no verified public spec to hardcode against.\n4. Test with **Execute workflow**, then toggle **Active**. No file exports, no Code node left for you to write — it's all wired.\n\nSelf-healing: the two GitHub HTTP nodes auto-retry 3x on transient failures (both are idempotent — safe to retry). The OpenTweet POST deliberately does NOT auto-retry, since retrying a create-tweet call on a lost response could double-post to X; a real failure there just waits for the next scheduled run.\n\nThe Command Deck's Connectors → GitHub Sync now commits the queue directly from the PWA. Nobody needs to touch data/content-queue.json by hand anymore — see AUTOMATION_GUIDE.md.",
+        "height": 380,
+        "width": 380
       },
       "id": "a1b2c3d4-0000-4000-8000-000000000001",
       "name": "Setup Notes",
@@ -43,7 +43,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [180, 200],
-      "notes": "Default (non-raw) Accept header — the response includes both `content` (base64) and `sha`, so this one request supplies everything the rest of the workflow needs.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Default (non-raw) Accept header — the response includes both `content` (base64) and `sha`, so this one request supplies everything the rest of the workflow needs. Retries 3x on transient failures (rate limits, blips) before giving up for this run — no manual re-trigger needed.",
       "credentials": {
         "httpHeaderAuth": {
           "id": "PLACEHOLDER_CREDENTIAL_ID",
@@ -82,7 +85,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [620, 200],
-      "notes": "Placeholder endpoint — replace with OpenTweet's documented tweet-creation URL and auth scheme before activating. Leave \"Continue On Fail\" off: if a post fails here, the run stops before anything gets marked posted, so it safely retries next cycle instead of mismarking a mix of successes and failures.",
+      "notes": "Placeholder endpoint — replace with OpenTweet's documented tweet-creation URL and auth scheme before activating. Leave \"Continue On Fail\" off: if a post fails here, the run stops before anything gets marked posted, so it safely retries next cycle instead of mismarking a mix of successes and failures. Deliberately NOT using retryOnFail here (unlike the GitHub nodes): retrying a create-tweet call on a timeout risks double-posting to X if the first attempt actually succeeded but the response was lost — there's no verified OpenTweet idempotency-key mechanism to make that safe. A genuine failure here waits for the next scheduled run instead.",
       "credentials": {
         "httpHeaderAuth": {
           "id": "PLACEHOLDER_CREDENTIAL_ID",
@@ -117,7 +120,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [1060, 200],
-      "notes": "sha/content/message all come straight from \"Build Updated Queue\" — nothing left to assemble by hand.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "sha/content/message all come straight from \"Build Updated Queue\" — nothing left to assemble by hand. Safe to retry: this write is idempotent (same sha + same content), and X already has the post regardless of whether this commit succeeds on the first try.",
       "credentials": {
         "httpHeaderAuth": {
           "id": "PLACEHOLDER_CREDENTIAL_ID",
