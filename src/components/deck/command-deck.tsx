@@ -13,6 +13,7 @@ import { OrbitVisual } from "./orbit";
 import { Starfield } from "./starfield";
 import { StatsGrid } from "./stats-grid";
 import { TopPosts } from "./top-posts";
+import { UpcomingPostCard } from "./upcoming-post";
 import { CONNECTOR_BRIEF } from "@/lib/copy";
 import { useDeckStore } from "@/lib/store";
 
@@ -40,6 +41,7 @@ export function CommandDeck() {
             <p className="px-1 text-[11px] leading-relaxed text-muted-foreground">
               {CONNECTOR_BRIEF.headline}. Log real hauls below, or open Connectors when you are ready to dock live APIs.
             </p>
+            <UpcomingPostCard />
             <StatsGrid />
             <div className="grid gap-4 lg:grid-cols-2">
               <OrbitVisual />
