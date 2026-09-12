@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { CalendarClock, Check, Plus, Trash2, X } from "lucide-react";
+import { CalendarClock, Check, Download, Plus, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +18,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { formatScheduled } from "@/lib/format";
 import { useDeckStore } from "@/lib/store";
-import { POST_LANGUAGE_LABEL, type PostLanguage, type QueuedPostStatus } from "@/lib/types";
+import {
+  POST_LANGUAGE_LABEL,
+  type PostLanguage,
+  type QueuedPostStatus,
+  type ScheduledPost,
+} from "@/lib/types";
 
 const STATUS_LABEL: Record<QueuedPostStatus, string> = {
   queued: "Queued",
@@ -82,6 +88,19 @@ function defaultScheduleValue() {
   return toLocalInputValue(d);
 }
 
+/** Downloads the live queue as content-queue.json, ready to commit into data/ for the automation layer (see AUTOMATION_GUIDE.md). */
+function exportQueueJson(queue: ScheduledPost[]) {
+  const blob = new Blob([JSON.stringify(queue, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "content-queue.json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function ContentQueuePanel() {
   const queue = useDeckStore((s) => s.contentQueue);
   const verticals = useDeckStore((s) => s.verticals);
@@ -109,103 +128,117 @@ export function ContentQueuePanel() {
           <CardTitle>Launch queue</CardTitle>
           <CardDescription>Transmissions staged for the automation layer to fire.</CardDescription>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" variant="outline">
-              <Plus className="size-3.5" />
-              Queue
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Stage a transmission</DialogTitle>
-              <DialogDescription>
-                Drops into the queue. The automation layer picks up whatever's earliest.
-              </DialogDescription>
-            </DialogHeader>
-            <form
-              className="grid gap-3"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!title.trim() || !scheduledFor) return;
-                queuePost({
-                  title: title.trim(),
-                  body: body.trim(),
-                  vertical,
-                  language,
-                  scheduledFor: new Date(scheduledFor).toISOString(),
-                });
-                setTitle("");
-                setBody("");
-                setScheduledFor(defaultScheduleValue());
-                setOpen(false);
-              }}
-            >
-              <div className="grid gap-1.5">
-                <Label htmlFor="q-title">Headline</Label>
-                <Input
-                  id="q-title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="The 2am post outperformed noon. Again."
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="q-body">Dispatch</Label>
-                <Textarea
-                  id="q-body"
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  placeholder="Supports **bold**, *italic*, `code`, and [links](https://x.com)."
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="q-vertical">Vertical</Label>
-                  <select
-                    id="q-vertical"
-                    value={vertical}
-                    onChange={(e) => setVertical(e.target.value)}
-                    className="h-11 rounded-md border border-input bg-background px-3 text-sm"
-                  >
-                    {verticals.map((v) => (
-                      <option key={v.id} value={v.name}>
-                        {v.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="q-language">Language</Label>
-                  <select
-                    id="q-language"
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value as PostLanguage)}
-                    className="h-11 rounded-md border border-input bg-background px-3 text-sm"
-                  >
-                    {LANGUAGES.map((l) => (
-                      <option key={l} value={l}>
-                        {POST_LANGUAGE_LABEL[l]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="q-time">Fires at</Label>
-                <Input
-                  id="q-time"
-                  type="datetime-local"
-                  value={scheduledFor}
-                  onChange={(e) => setScheduledFor(e.target.value)}
-                />
-              </div>
-              <Button type="submit" className="mt-1">
-                Add to queue
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={queue.length === 0}
+            onClick={() => {
+              exportQueueJson(queue);
+              toast("Queue exported. Commit it to data/content-queue.json — see AUTOMATION_GUIDE.md.");
+            }}
+          >
+            <Download className="size-3.5" />
+            Export
+          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline">
+                <Plus className="size-3.5" />
+                Queue
               </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Stage a transmission</DialogTitle>
+                <DialogDescription>
+                  Drops into the queue. The automation layer picks up whatever's earliest.
+                </DialogDescription>
+              </DialogHeader>
+              <form
+                className="grid gap-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!title.trim() || !scheduledFor) return;
+                  queuePost({
+                    title: title.trim(),
+                    body: body.trim(),
+                    vertical,
+                    language,
+                    scheduledFor: new Date(scheduledFor).toISOString(),
+                  });
+                  setTitle("");
+                  setBody("");
+                  setScheduledFor(defaultScheduleValue());
+                  setOpen(false);
+                }}
+              >
+                <div className="grid gap-1.5">
+                  <Label htmlFor="q-title">Headline</Label>
+                  <Input
+                    id="q-title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="The 2am post outperformed noon. Again."
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="q-body">Dispatch</Label>
+                  <Textarea
+                    id="q-body"
+                    value={body}
+                    onChange={(e) => setBody(e.target.value)}
+                    placeholder="Supports **bold**, *italic*, `code`, and [links](https://x.com)."
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="q-vertical">Vertical</Label>
+                    <select
+                      id="q-vertical"
+                      value={vertical}
+                      onChange={(e) => setVertical(e.target.value)}
+                      className="h-11 rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      {verticals.map((v) => (
+                        <option key={v.id} value={v.name}>
+                          {v.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="q-language">Language</Label>
+                    <select
+                      id="q-language"
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value as PostLanguage)}
+                      className="h-11 rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      {LANGUAGES.map((l) => (
+                        <option key={l} value={l}>
+                          {POST_LANGUAGE_LABEL[l]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="q-time">Fires at</Label>
+                  <Input
+                    id="q-time"
+                    type="datetime-local"
+                    value={scheduledFor}
+                    onChange={(e) => setScheduledFor(e.target.value)}
+                  />
+                </div>
+                <Button type="submit" className="mt-1">
+                  Add to queue
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="queue">

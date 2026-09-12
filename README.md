@@ -112,7 +112,7 @@ Until then: **Telemetry** tab + **Log haul** is the real workflow.
 
 ## Automate posting
 
-The **Launch queue** panel stages daily, multi-language posts (with a Queue/Preview tab to markdown-preview each one). To actually fire them to X on a schedule, see [`AUTOMATION_GUIDE.md`](./AUTOMATION_GUIDE.md) and import [`n8n-workflow-template.json`](./n8n-workflow-template.json) into n8n.
+The **Launch queue** panel stages daily, multi-language posts (with a Queue/Preview tab to markdown-preview each one) and an **Export** button that downloads the live queue as `content-queue.json`, ready to commit into `data/`. To actually fire them to X on a schedule, see [`AUTOMATION_GUIDE.md`](./AUTOMATION_GUIDE.md) and import [`n8n-workflow-template.json`](./n8n-workflow-template.json) into n8n.
 
 ---
 

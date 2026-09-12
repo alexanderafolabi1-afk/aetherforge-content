@@ -29,17 +29,18 @@ Each item in the queue matches the `ScheduledPost` shape from `src/lib/types.ts`
 
 ### 1. Export the queue from the Command Deck
 
-Until an in-app "sync to GitHub" button exists, export by hand from the browser console (DevTools → Console, on the deployed app):
+Open the **Launch queue** panel and click **Export** (top right, next to **Queue**). This downloads `content-queue.json` — the live `contentQueue` array, straight from `localStorage`, in exactly the `ScheduledPost[]` shape n8n expects. No devtools needed.
+
+The button is disabled when the queue is empty. If you'd rather script it or pull the data another way, it's equivalent to:
 
 ```js
 copy(JSON.stringify(useDeckStore.getState().contentQueue, null, 2));
 ```
-
-This copies the current queue to your clipboard. (`useDeckStore` is available globally in dev builds; in production, open React DevTools → select any Command Deck component → the store is on its Zustand hook, or simply read `localStorage.getItem("aetherforge-command-deck")` and pull the `state.contentQueue` field from the parsed JSON.)
+run from the browser console on the deployed app (`useDeckStore` is available globally in dev builds; in production, read `localStorage.getItem("aetherforge-command-deck")` and pull the `state.contentQueue` field from the parsed JSON).
 
 ### 2. Commit the bridge file
 
-Paste the exported array into `data/content-queue.json` in this repo and commit:
+Move the downloaded `content-queue.json` into `data/content-queue.json` in this repo and commit:
 
 ```
 aetherforge-content/
