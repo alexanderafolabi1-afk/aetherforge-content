@@ -1,0 +1,213 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --color-background: #07060d;
+  --color-foreground: #f4f0ea;
+  --color-card: #12101c;
+  --color-card-foreground: #f4f0ea;
+  --color-popover: #161326;
+  --color-popover-foreground: #f4f0ea;
+  --color-primary: #4de8ff;
+  --color-primary-foreground: #041318;
+  --color-secondary: #1b1730;
+  --color-secondary-foreground: #f4f0ea;
+  --color-muted: #1b1730;
+  --color-muted-foreground: #9a92b0;
+  --color-accent: #e4c17a;
+  --color-accent-foreground: #1a1408;
+  --color-destructive: #ff6b7a;
+  --color-border: rgb(244 240 234 / 0.1);
+  --color-input: rgb(244 240 234 / 0.12);
+  --color-ring: #4de8ff;
+  --color-gold: #e4c17a;
+  --color-gold-foreground: #1a1408;
+  --color-success: #5ee0a0;
+  --color-nebula: #6b4cff;
+
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Syne", ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-3xl: 32px;
+
+  --shadow-border: 0 0 0 1px rgb(244 240 234 / 0.08);
+  --shadow-border-hover: 0 0 0 1px rgb(244 240 234 / 0.14);
+  --shadow-glow: 0 0 40px rgb(77 232 255 / 0.12);
+  --shadow-gold: 0 0 36px rgb(228 193 122 / 0.16);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    min-height: 100dvh;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    font-family: var(--font-display);
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(2deg);
+  }
+}
+
+@keyframes float-y-fast {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-4deg) scale(1);
+  }
+  50% {
+    transform: translateY(-22px) rotate(4deg) scale(1.03);
+  }
+}
+
+@keyframes visor-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shockwave {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes boot-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes shimmer-sweep {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.deck-card {
+  background: color-mix(in oklab, var(--color-card) 88%, transparent);
+  box-shadow: var(--shadow-border);
+  backdrop-filter: blur(16px);
+}
+
+.deck-card:hover {
+  box-shadow: var(--shadow-border-hover);
+}
+
+.enter-up {
+  animation: boot-up 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.stagger-1 {
+  animation-delay: 40ms;
+}
+.stagger-2 {
+  animation-delay: 80ms;
+}
+.stagger-3 {
+  animation-delay: 120ms;
+}
+.stagger-4 {
+  animation-delay: 160ms;
+}
+.stagger-5 {
+  animation-delay: 200ms;
+}
+.stagger-6 {
+  animation-delay: 240ms;
+}
+
+.shimmer-text {
+  background: linear-gradient(
+    90deg,
+    var(--color-muted-foreground) 0%,
+    var(--color-foreground) 45%,
+    var(--color-primary) 50%,
+    var(--color-foreground) 55%,
+    var(--color-muted-foreground) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer-sweep 2.4s linear infinite;
+}

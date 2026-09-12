@@ -1,0 +1,13 @@
+{
+  "name": "AetherForge Command Deck",
+  "short_name": "AetherForge",
+  "description": "Cosmic creator observatory for influence, revenue, and streaks.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#07060D",
+  "theme_color": "#07060D",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
