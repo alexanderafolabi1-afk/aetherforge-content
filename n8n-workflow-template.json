@@ -1,0 +1,206 @@
+{
+  "name": "AetherForge - Content Queue to X (via OpenTweet)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## AetherForge auto-poster\n\n1. Set credentials: `GITHUB_TOKEN` (repo contents: read/write) and `OPENTWEET_API_KEY`.\n2. Edit the **Fetch Content Queue** node with your GitHub owner/repo/path.\n3. Edit the **Post to X via OpenTweet** node's URL/auth to match OpenTweet's actual API docs — the URL below is a placeholder.\n4. See AUTOMATION_GUIDE.md in the repo for the full walkthrough.",
+        "height": 260,
+        "width": 320
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000001",
+      "name": "Setup Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-260, -40]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000002",
+      "name": "Schedule - Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-40, 120]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "aetherforge-content-queue",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000003",
+      "name": "Webhook - Manual Trigger (optional)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-40, 280],
+      "webhookId": "aetherforge-content-queue"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/{{$env.GITHUB_OWNER}}/{{$env.GITHUB_REPO}}/contents/data/content-queue.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Accept", "value": "application/vnd.github.raw+json" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000004",
+      "name": "Fetch Content Queue (GitHub)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [180, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "PLACEHOLDER_CREDENTIAL_ID",
+          "name": "GitHub Contents Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "={{$json}}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000005",
+      "name": "Split Out Queue Items",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [400, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-status",
+              "leftValue": "={{$json.status}}",
+              "rightValue": "queued",
+              "operator": { "type": "string", "operation": "equals" }
+            },
+            {
+              "id": "cond-due",
+              "leftValue": "={{$json.scheduledFor}}",
+              "rightValue": "={{$now.toISO()}}",
+              "operator": { "type": "dateTime", "operation": "before" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000006",
+      "name": "Filter - Due & Queued",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [620, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.opentweet.io/v1/tweets",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"text\": $json.title + ( $json.body ? \"\\n\\n\" + $json.body : \"\" ), \"lang\": $json.language, \"vertical\": $json.vertical } }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000007",
+      "name": "Post to X via OpenTweet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [840, 200],
+      "notesInFlow": true,
+      "notes": "Placeholder endpoint — replace with OpenTweet's documented tweet-creation URL and auth scheme before activating.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "PLACEHOLDER_CREDENTIAL_ID",
+          "name": "OpenTweet API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.github.com/repos/{{$env.GITHUB_OWNER}}/{{$env.GITHUB_REPO}}/contents/data/content-queue.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Accept", "value": "application/vnd.github+json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"message\": \"chore: mark queued post as posted (\" + $json.id + \")\", \"content\": $json.updatedContentBase64, \"sha\": $json.fileSha } }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000008",
+      "name": "Mark Posted (GitHub commit)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1060, 200],
+      "notes": "Requires assembling updatedContentBase64 + fileSha upstream (Code node) — see AUTOMATION_GUIDE.md step 5.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "PLACEHOLDER_CREDENTIAL_ID",
+          "name": "GitHub Contents Token"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule - Every 15 Minutes": {
+      "main": [[{ "node": "Fetch Content Queue (GitHub)", "type": "main", "index": 0 }]]
+    },
+    "Webhook - Manual Trigger (optional)": {
+      "main": [[{ "node": "Fetch Content Queue (GitHub)", "type": "main", "index": 0 }]]
+    },
+    "Fetch Content Queue (GitHub)": {
+      "main": [[{ "node": "Split Out Queue Items", "type": "main", "index": 0 }]]
+    },
+    "Split Out Queue Items": {
+      "main": [[{ "node": "Filter - Due & Queued", "type": "main", "index": 0 }]]
+    },
+    "Filter - Due & Queued": {
+      "main": [[{ "node": "Post to X via OpenTweet", "type": "main", "index": 0 }]]
+    },
+    "Post to X via OpenTweet": {
+      "main": [[{ "node": "Mark Posted (GitHub commit)", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
