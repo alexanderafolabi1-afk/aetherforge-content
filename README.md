@@ -52,7 +52,8 @@ aetherforge-content/
 │   │   ├── copy.ts            Space-pun lines and greetings
 │   │   ├── format.ts          47.8K / $4,280 helpers
 │   │   ├── connectors.ts      How to wire X / Sheets / tips later
-│   │   └── pin.ts             Salted-hash PIN storage (no plaintext)
+│   │   ├── pin.ts             Salted-hash PIN storage (no plaintext)
+│   │   └── github-sync.ts     Direct browser → GitHub Contents API commit
 │   ├── components/ui/         Buttons, cards, dialogs (Radix)
 │   └── components/deck/       The actual observatory
 │       ├── command-deck.tsx   Layout
@@ -110,7 +111,7 @@ Open **Connectors** in the deck, or read `src/lib/connectors.ts`.
 - **Sheets** → daily snapshot + revenue journal  
 - **Stripe / Ko-fi / tips** → append hauls  
 
-Never put API secrets in the frontend. Server routes only.
+Never put API secrets in the frontend — server routes only. **GitHub Sync** (below) is the one deliberate exception: it needs a token in the browser to commit directly, so it's scoped as narrowly as possible (fine-grained PAT, one repo, Contents-only) and clearly warned about in the UI.
 
 Until then: **Telemetry** tab + **Log haul** is the real workflow.
 
@@ -118,7 +119,7 @@ Until then: **Telemetry** tab + **Log haul** is the real workflow.
 
 ## Automate posting
 
-The **Launch queue** panel stages daily, multi-language posts (with a Queue/Preview tab to markdown-preview each one) and an **Export** button that downloads the live queue as `content-queue.json`, ready to commit into `data/`. To actually fire them to X on a schedule, see [`AUTOMATION_GUIDE.md`](./AUTOMATION_GUIDE.md) and import [`n8n-workflow-template.json`](./n8n-workflow-template.json) into n8n.
+The **Launch queue** panel stages daily, multi-language posts (with a Queue/Preview tab to markdown-preview each one). **GitHub Sync** (Connectors → GitHub Sync) commits the queue straight to `data/content-queue.json` in this repo the moment it changes — no export, no manual upload. To actually fire posts to X on a schedule, see [`AUTOMATION_GUIDE.md`](./AUTOMATION_GUIDE.md) and import [`n8n-workflow-template.json`](./n8n-workflow-template.json) into n8n.
 
 ---
 

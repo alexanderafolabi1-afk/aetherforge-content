@@ -1,14 +1,26 @@
 # Automation Guide: Content Queue → X (via OpenTweet)
 
-This guide connects the Command Deck's **Launch queue** (the content schedule you stage in the app) to an external posting service, using [n8n](https://n8n.io) and [`n8n-workflow-template.json`](./n8n-workflow-template.json).
+This guide connects the Command Deck's **Launch queue** (the content schedule you stage in the app) to an external posting service, using [n8n](https://n8n.io) and [`n8n-workflow-template.json`](./n8n-workflow-template.json). There is no manual file export/upload step anymore — the app commits directly to this repo.
 
-## How data actually flows today (read this first)
+## How data flows today
 
-The Command Deck is a **local-first PWA**. Everything you queue lives in your browser's `localStorage` under the key `aetherforge-command-deck` (see `src/lib/store.ts`) — there is no server, and nothing in the queue reaches GitHub or n8n automatically. To automate posting, you need a bridge: a JSON file committed to this repo that your queue syncs into, and that n8n reads from on a schedule.
+The Command Deck is a **local-first PWA**: everything you queue is stored in your browser's `localStorage` under the key `aetherforge-command-deck` (see `src/lib/store.ts`). To hand posts to an external automation, that data needs to exist somewhere n8n can read it — this repo, at `data/content-queue.json`.
 
-That bridge file is `data/content-queue.json`. It does not exist yet — you create it as part of setup below.
+**GitHub Sync** (in the **Connectors** dialog) closes that gap directly: once configured, the Command Deck commits the queue straight to `data/content-queue.json` in this repo via the GitHub Contents API — no download, no manual upload, no copy-pasting.
 
-Each item in the queue matches the `ScheduledPost` shape from `src/lib/types.ts`:
+```
+Command Deck (browser)  --[GitHub Contents API, direct commit]-->  data/content-queue.json
+                                                                            |
+                                                                    [n8n, every 15 min]
+                                                                            v
+                                                                    Post due items to X
+                                                                            |
+                                                                    [commit status back]
+                                                                            v
+                                                                    data/content-queue.json
+```
+
+Each item matches the `ScheduledPost` shape from `src/lib/types.ts`:
 
 ```json
 {
@@ -25,90 +37,76 @@ Each item in the queue matches the `ScheduledPost` shape from `src/lib/types.ts`
 
 `status` is one of `"queued" | "posted" | "skipped"`. The automation only ever touches `"queued"` items whose `scheduledFor` has passed.
 
-## Setup
+## Setup (one time)
 
-### 1. Export the queue from the Command Deck
+### 1. Create a GitHub token — read this before anything else
 
-Open the **Launch queue** panel and click **Export** (top right, next to **Queue**). This downloads `content-queue.json` — the live `contentQueue` array, straight from `localStorage`, in exactly the `ScheduledPost[]` shape n8n expects. No devtools needed.
+GitHub Sync needs a token that can write to this repo, and it lives in your browser's `localStorage`. That is a real credential, not a screen-lock hash — treat it with real care:
 
-The button is disabled when the queue is empty. If you'd rather script it or pull the data another way, it's equivalent to:
+- Create a **fine-grained personal access token**: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
+- Scope it to **this one repository only** (`aetherforge-content`, or your fork) — never "all repositories"
+- Grant only **Contents: Read and write** — nothing else
+- Set a reasonable expiry and rotate it periodically
 
-```js
-copy(JSON.stringify(useDeckStore.getState().contentQueue, null, 2));
-```
-run from the browser console on the deployed app (`useDeckStore` is available globally in dev builds; in production, read `localStorage.getItem("aetherforge-command-deck")` and pull the `state.contentQueue` field from the parsed JSON).
+Never paste a classic PAT or one with account-wide scope here. Anyone with access to this browser or its devtools can read it.
 
-### 2. Commit the bridge file
+### 2. Configure GitHub Sync in the app
 
-Move the downloaded `content-queue.json` into `data/content-queue.json` in this repo and commit:
+Open **Connectors** in the Command Deck → **GitHub Sync** → fill in:
 
-```
-aetherforge-content/
-└── data/
-    └── content-queue.json   ← array of ScheduledPost objects
-```
+| Field | Value |
+| --- | --- |
+| Owner | `alexanderafolabi1-afk` (or your fork's owner) |
+| Repo | `aetherforge-content` |
+| Branch | `main` |
+| Path | `data/content-queue.json` |
+| Token | the fine-grained PAT from step 1 |
 
-This file is what n8n polls — it's the handoff point between "what you staged in the app" and "what the automation is allowed to post."
+Click **Save** (PIN-confirmed, same as every restricted action here). From this point on, every change to the Launch queue — adding a post, marking one posted, skipping, removing — auto-commits to GitHub a couple of seconds later. There's also a manual **Sync to GitHub** button in the Launch queue header for an on-demand push.
+
+The panel shows a live status line ("Synced to GitHub · 2:14 PM" or "Sync failed") so you always know whether the bridge is actually working — it isn't a silent fire-and-forget.
 
 ### 3. Import the n8n workflow
 
 1. Open your n8n instance → **Workflows → Import from File**
 2. Select [`n8n-workflow-template.json`](./n8n-workflow-template.json)
-3. The template ships with:
-   - A **Schedule Trigger** (every 15 minutes) and an optional **Webhook** you can call manually
-   - **Fetch Content Queue (GitHub)** — reads `data/content-queue.json` via the GitHub Contents API
-   - **Split Out Queue Items** + **Filter - Due & Queued** — keeps only `status: "queued"` items whose `scheduledFor` is in the past
-   - **Post to X via OpenTweet** — placeholder HTTP Request node
-   - **Mark Posted (GitHub commit)** — writes the updated queue back so posted items don't fire twice
+3. Add two credentials (n8n → Credentials → New):
+   - **GitHub Contents Token** — the same kind of fine-grained PAT as above (a separate token is fine, or reuse the one from step 1)
+   - **OpenTweet API Key** — whatever OpenTweet's docs specify (bearer token, header key, etc.)
+4. Assign each credential to the matching HTTP Request nodes (they're pre-named to make this obvious)
+5. The Fetch / Mark Posted node URLs already point at this exact repo — only edit them if you're running this against a fork
 
-### 4. Configure credentials in n8n
+The template ships fully wired, not a skeleton:
+- **Schedule Trigger** (every 15 minutes) — n8n's own "Execute workflow" button covers manual testing, so there's no separate webhook trigger to configure
+- **Fetch Content Queue (GitHub)** — one GET that returns both the file content and its `sha`
+- **Decode & Filter Due Posts** (Code node) — decodes the file, keeps only `queued` items whose `scheduledFor` has passed
+- **Post to X via OpenTweet** — the one placeholder left: OpenTweet's real endpoint/auth isn't something this guide can verify, so update the URL and auth against their actual docs before activating
+- **Build Updated Queue** (Code node) — merges `status: "posted"` back into the full queue and base64-encodes it; if nothing was due, it outputs nothing and skips the commit entirely
+- **Mark Posted (GitHub commit)** — writes the result back, using the real `sha`/`content`/`message` from the previous node
 
-| Credential | Used by | Notes |
-| --- | --- | --- |
-| `GitHub Contents Token` | Fetch / Mark Posted nodes | A GitHub PAT (fine-grained, scoped to this repo, **Contents: Read and write**) |
-| `OpenTweet API Key` | Post to X node | Whatever auth scheme OpenTweet documents (bearer token, header key, etc.) |
+No Code node is left as an exercise — both are implemented and tested (see the repo's own verification in the commit that introduced this template).
 
-Set these as n8n credentials (or environment variables `GITHUB_OWNER`, `GITHUB_REPO`, `GITHUB_TOKEN`, `OPENTWEET_API_KEY`) — never hardcode secrets into the workflow JSON itself.
+### 4. Test before activating
 
-### 5. Fill in the placeholders
+- **Execute workflow** in n8n with at least one `queued` item scheduled in the past (stage one from the Command Deck, or hand-edit `data/content-queue.json` for a dry run)
+- Confirm it posts to OpenTweet (or a mock endpoint first) and commits `status: "posted"` back
+- Only then toggle the workflow **Active**
 
-The template intentionally ships with two things you must edit before activating:
+## Daily use
 
-- **GitHub owner/repo** — the `Fetch Content Queue` and `Mark Posted` node URLs reference `{{$env.GITHUB_OWNER}}` / `{{$env.GITHUB_REPO}}`; point these at `alexanderafolabi1-afk/aetherforge-content` (or your fork).
-- **OpenTweet endpoint** — the `Post to X via OpenTweet` node's URL (`https://api.opentweet.io/v1/tweets`) is a **placeholder**. Confirm the real endpoint, payload shape, and auth header against OpenTweet's actual API docs before going live, and update the `jsonBody` mapping to match.
-- **Mark Posted commit body** — writing back to GitHub's Contents API requires the file's current `sha` and a base64-encoded new body. Add a small **Code** node before "Mark Posted" that re-fetches the file's `sha`, merges the posted item's `status` to `"posted"`, and base64-encodes the result. This is left as a Code node for you to fill in because the exact merge logic depends on how many items you queue per run.
+Once both sides are set up, this is the entire loop:
 
-### 6. Test before activating
+1. **Check what's next.** The **Next up** card on the main screen shows the earliest queued item's language and publish time at a glance.
+2. **Stage or adjust posts** in the **Launch queue** panel — headline, dispatch, vertical, language, fire time. Use the **Preview** tab to markdown-check each language variant.
+3. That's it. The queue auto-syncs to GitHub a couple of seconds after any change (watch the status line), and n8n picks up anything due on its next 15-minute run.
+4. **Reconcile in-app status.** n8n commits `status: "posted"` back to `data/content-queue.json`, but the Command Deck still reads its own `localStorage` — it doesn't pull that file back down automatically. Mark the same items posted with the ✓ button in the Launch queue panel once you've confirmed they went out, so the in-app view matches reality.
+5. **Verify with the telemetry check script** (optional, `npm run check-queue` — see below) any time you want a repo-side health check independent of the app's own status line.
 
-- Run the workflow manually in n8n (**Execute Workflow**) with a queue file containing one `queued` item scheduled in the past.
-- Confirm it posts to OpenTweet (or a mock endpoint first) and commits the status change back to GitHub.
-- Only then toggle the workflow **Active**.
+There's no export/upload step left to remember — steps 1–3 are the only ones that repeat daily, and step 3 requires no action beyond the edit itself.
 
-### 7. Closing the loop back into the app
+### Verifying with the telemetry check script
 
-After n8n commits `status: "posted"` back to `data/content-queue.json`, the Command Deck itself won't auto-refresh (it's still reading its own `localStorage`, not this repo file). To reflect posted status in the app, either:
-
-- Manually paste the updated file's contents back into `localStorage` (`localStorage.setItem("aetherforge-command-deck", ...)`, merging into the existing `state.contentQueue`), or
-- Use the app's own **Mark posted** action (✓ button) in the **Launch queue** panel once you've confirmed it went out — the simplest path for now.
-
-A proper two-way sync (the app reading `data/content-queue.json` directly, or a small API) is a reasonable next step but isn't built yet — this guide reflects what's actually wired up today.
-
-## Daily execution (once setup is done)
-
-Setup (above) is one-time. Once the n8n workflow is imported and active, here's the loop you actually repeat every day:
-
-1. **Check what's next.** The Command Deck's main screen shows a **Next up** card right below the hero — it surfaces the earliest `queued` item's **language badge** and **publication timestamp** at a glance, so you don't need to open the Launch queue panel just to check what's about to fire.
-2. **Stage or adjust posts.** Open the **Launch queue** panel, add new transmissions via **Queue** (headline, dispatch, vertical, language, fire time), and use the **Preview** tab to markdown-check each language variant before it goes out.
-3. **Export.** Click **Export** in the Launch queue header. This downloads the current `content-queue.json` with every item you've staged — queued, posted, and skipped alike.
-4. **Commit.** Replace `data/content-queue.json` in this repo with the freshly downloaded file and push (or upload via the GitHub web UI if you're not at a terminal). This is the step that actually hands new posts to the automation — **the Export button does not talk to GitHub or n8n by itself**, it only produces the file.
-5. **Flip the status toggle.** In the header, next to the refresh button, there's an **Automation live / idle** toggle. Set it to **live** once you've confirmed the n8n workflow is active and importing correctly, so the deck's own UI reflects reality. This is a manual flag you control — the browser has no way to actually ping your n8n instance (no webhook URL or credentials live in the frontend, by design), so treat it as a personal reminder rather than a live health check.
-6. **Let the schedule trigger run.** n8n polls `data/content-queue.json` every 15 minutes (per the template's Schedule Trigger), posts anything `queued` and due, and commits the updated statuses back.
-7. **Verify with the telemetry check script.** Run `npm run check-queue` (or `node scripts/check-queue-telemetry.mjs`) against your local checkout. It validates `data/content-queue.json` against the exact shape n8n's Filter node expects, and — most usefully — flags any `queued` item whose `scheduledFor` has already passed. That's the local, repo-side signal that the n8n pipeline isn't actually keeping up, independent of whatever the header's Automation toggle says. It writes a snapshot to `data/automation-status.json` and appends a line to `data/automation-status.log` (both gitignored by default — commit them yourself, or wire a scheduled job to run the script and commit, if you want that history tracked).
-8. **Reconcile.** Next time you open the Launch queue panel, mark those same items posted with the ✓ button (see step 7 under Setup) so the in-app view matches what actually went out. Repeat from step 1 the next day.
-
-The only step that changes day-to-day is 2–4: stage → export → commit. Step 7 is your health check; everything else (the n8n side) runs unattended once it's active.
-
-### Reading the telemetry check's output
+Run `npm run check-queue` (or `node scripts/check-queue-telemetry.mjs`) against your local checkout of this repo (after pulling the latest commit GitHub Sync or n8n made). It validates `data/content-queue.json` against the exact shape the n8n workflow expects, and flags any `queued` item whose `scheduledFor` has already passed — the clearest sign the n8n side has stalled:
 
 ```
 $ npm run check-queue
@@ -122,14 +120,15 @@ Status written to data/automation-status.json
 Log appended to data/automation-status.log
 ```
 
-A non-zero exit code means either the file doesn't match the `ScheduledPost` shape (bad export, hand-edited file, etc.) or something is overdue — treat either as "go check the n8n execution log," not as an in-app problem.
+A non-zero exit code means either a shape problem or something overdue — treat it as "go check the n8n execution log," not an in-app problem. Its output files are gitignored by default; commit them yourself, or wire a scheduled job, if you want that history tracked.
 
 ## Reference
 
 - Queue data model: `src/lib/types.ts` (`ScheduledPost`, `PostLanguage`)
 - Queue actions: `src/lib/store.ts` (`queuePost`, `markQueuePosted`, `skipQueuedPost`, `removeQueuedPost`, `nextQueuedPost`)
-- Queue UI: `src/components/deck/content-queue.tsx` (Launch queue panel, Queue/Preview tabs, Export button)
-- Next-up preview: `src/components/deck/upcoming-post.tsx` (language + publish-time card on the main screen)
-- Automation status toggle: `src/components/deck/command-bar.tsx` (`automationActive` / `toggleAutomation` in `src/lib/store.ts`) — manual flag, not a live n8n health check
-- Telemetry check script: `scripts/check-queue-telemetry.mjs` (`npm run check-queue`) — validates `data/content-queue.json` and flags overdue items; writes `data/automation-status.json` + `data/automation-status.log`
+- Queue UI: `src/components/deck/content-queue.tsx` (Launch queue panel, Queue/Preview tabs, Sync to GitHub)
+- GitHub Sync: `src/lib/github-sync.ts` (config storage + the direct commit flow), settings UI in `src/components/deck/connectors.tsx`
+- Next-up preview: `src/components/deck/upcoming-post.tsx`
+- Automation status toggle: `src/components/deck/command-bar.tsx` (`automationActive` / `toggleAutomation`) — manual flag, not a live n8n health check
+- Telemetry check script: `scripts/check-queue-telemetry.mjs` (`npm run check-queue`)
 - Workflow template: `n8n-workflow-template.json`

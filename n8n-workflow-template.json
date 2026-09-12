@@ -3,15 +3,15 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## AetherForge auto-poster\n\n1. Set credentials: `GITHUB_TOKEN` (repo contents: read/write) and `OPENTWEET_API_KEY`.\n2. Edit the **Fetch Content Queue** node with your GitHub owner/repo/path.\n3. Edit the **Post to X via OpenTweet** node's URL/auth to match OpenTweet's actual API docs — the URL below is a placeholder.\n4. See AUTOMATION_GUIDE.md in the repo for the full walkthrough.",
-        "height": 260,
-        "width": 320
+        "content": "## AetherForge auto-poster (simplified)\n\n1. Import this workflow. Add 2 credentials: **GitHub Contents Token** (fine-grained PAT, Contents: Read and write, scoped to this one repo) and **OpenTweet API Key**.\n2. The Fetch / Mark Posted node URLs already point at this repo (alexanderafolabi1-afk/aetherforge-content). Editing them is only needed if you forked the repo.\n3. Point **Post to X via OpenTweet** at OpenTweet's real endpoint/auth scheme — the URL here is a placeholder; there's no verified public spec to hardcode against.\n4. Test with **Execute workflow**, then toggle **Active**. No file exports, no Code node left for you to write — it's all wired.\n\nThe Command Deck's Connectors → GitHub Sync now commits the queue directly from the PWA. Nobody needs to touch data/content-queue.json by hand anymore — see AUTOMATION_GUIDE.md.",
+        "height": 320,
+        "width": 360
       },
       "id": "a1b2c3d4-0000-4000-8000-000000000001",
       "name": "Setup Notes",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-260, -40]
+      "position": [-280, -60]
     },
     {
       "parameters": {
@@ -28,34 +28,14 @@
       "name": "Schedule - Every 15 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-40, 120]
-    },
-    {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "aetherforge-content-queue",
-        "responseMode": "onReceived",
-        "options": {}
-      },
-      "id": "a1b2c3d4-0000-4000-8000-000000000003",
-      "name": "Webhook - Manual Trigger (optional)",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [-40, 280],
-      "webhookId": "aetherforge-content-queue"
+      "position": [-40, 200]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://api.github.com/repos/{{$env.GITHUB_OWNER}}/{{$env.GITHUB_REPO}}/contents/data/content-queue.json",
+        "url": "https://api.github.com/repos/alexanderafolabi1-afk/aetherforge-content/contents/data/content-queue.json",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "Accept", "value": "application/vnd.github.raw+json" }
-          ]
-        },
         "options": {}
       },
       "id": "a1b2c3d4-0000-4000-8000-000000000004",
@@ -63,6 +43,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [180, 200],
+      "notes": "Default (non-raw) Accept header — the response includes both `content` (base64) and `sha`, so this one request supplies everything the rest of the workflow needs.",
       "credentials": {
         "httpHeaderAuth": {
           "id": "PLACEHOLDER_CREDENTIAL_ID",
@@ -72,46 +53,14 @@
     },
     {
       "parameters": {
-        "fieldToSplitOut": "={{$json}}",
-        "options": {}
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Decodes the fetched file and returns one item per post that's due to fire.\n// Each output item carries the original file's sha + full queue array so the\n// later \"Build Updated Queue\" step doesn't need to re-fetch anything.\nconst fetched = $input.first().json;\nconst sha = fetched.sha;\nconst decoded = Buffer.from(fetched.content, 'base64').toString('utf-8');\nconst queue = JSON.parse(decoded);\nconst now = Date.now();\n\nconst due = queue.filter(\n  (post) => post.status === 'queued' && new Date(post.scheduledFor).getTime() <= now,\n);\n\nreturn due.map((post) => ({\n  json: {\n    ...post,\n    _sha: sha,\n    _fullQueue: queue,\n  },\n}));"
       },
       "id": "a1b2c3d4-0000-4000-8000-000000000005",
-      "name": "Split Out Queue Items",
-      "type": "n8n-nodes-base.splitOut",
-      "typeVersion": 1,
+      "name": "Decode & Filter Due Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [400, 200]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          },
-          "conditions": [
-            {
-              "id": "cond-status",
-              "leftValue": "={{$json.status}}",
-              "rightValue": "queued",
-              "operator": { "type": "string", "operation": "equals" }
-            },
-            {
-              "id": "cond-due",
-              "leftValue": "={{$json.scheduledFor}}",
-              "rightValue": "={{$now.toISO()}}",
-              "operator": { "type": "dateTime", "operation": "before" }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "a1b2c3d4-0000-4000-8000-000000000006",
-      "name": "Filter - Due & Queued",
-      "type": "n8n-nodes-base.filter",
-      "typeVersion": 2.2,
-      "position": [620, 200]
     },
     {
       "parameters": {
@@ -121,9 +70,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
-          "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
-          ]
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
         },
         "sendBody": true,
         "specifyBody": "json",
@@ -134,9 +81,8 @@
       "name": "Post to X via OpenTweet",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [840, 200],
-      "notesInFlow": true,
-      "notes": "Placeholder endpoint — replace with OpenTweet's documented tweet-creation URL and auth scheme before activating.",
+      "position": [620, 200],
+      "notes": "Placeholder endpoint — replace with OpenTweet's documented tweet-creation URL and auth scheme before activating. Leave \"Continue On Fail\" off: if a post fails here, the run stops before anything gets marked posted, so it safely retries next cycle instead of mismarking a mix of successes and failures.",
       "credentials": {
         "httpHeaderAuth": {
           "id": "PLACEHOLDER_CREDENTIAL_ID",
@@ -146,19 +92,24 @@
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Every item that reaches this node already posted successfully (a failed\n// HTTP call upstream halts the run instead of continuing, since \"Continue\n// On Fail\" is off on the OpenTweet node) — so it's safe to mark all of them.\nconst originalItems = $('Decode & Filter Due Posts').all();\nif (originalItems.length === 0) {\n  return [];\n}\n\nconst postedIds = new Set(originalItems.map((item) => item.json.id));\nconst sha = originalItems[0].json._sha;\nconst fullQueue = originalItems[0].json._fullQueue;\n\nconst updatedQueue = fullQueue.map((post) =>\n  postedIds.has(post.id) ? { ...post, status: 'posted' } : post,\n);\n\nconst content = Buffer.from(JSON.stringify(updatedQueue, null, 2), 'utf-8').toString('base64');\n\nreturn [\n  {\n    json: {\n      sha,\n      content,\n      message: `chore: mark ${postedIds.size} post(s) as posted (n8n)`,\n    },\n  },\n];"
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000009",
+      "name": "Build Updated Queue",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [840, 200]
+    },
+    {
+      "parameters": {
         "method": "PUT",
-        "url": "=https://api.github.com/repos/{{$env.GITHUB_OWNER}}/{{$env.GITHUB_REPO}}/contents/data/content-queue.json",
+        "url": "https://api.github.com/repos/alexanderafolabi1-afk/aetherforge-content/contents/data/content-queue.json",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "Accept", "value": "application/vnd.github+json" }
-          ]
-        },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"message\": \"chore: mark queued post as posted (\" + $json.id + \")\", \"content\": $json.updatedContentBase64, \"sha\": $json.fileSha } }}",
+        "jsonBody": "={{ { \"message\": $json.message, \"content\": $json.content, \"sha\": $json.sha } }}",
         "options": {}
       },
       "id": "a1b2c3d4-0000-4000-8000-000000000008",
@@ -166,7 +117,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [1060, 200],
-      "notes": "Requires assembling updatedContentBase64 + fileSha upstream (Code node) — see AUTOMATION_GUIDE.md step 5.",
+      "notes": "sha/content/message all come straight from \"Build Updated Queue\" — nothing left to assemble by hand.",
       "credentials": {
         "httpHeaderAuth": {
           "id": "PLACEHOLDER_CREDENTIAL_ID",
@@ -179,19 +130,16 @@
     "Schedule - Every 15 Minutes": {
       "main": [[{ "node": "Fetch Content Queue (GitHub)", "type": "main", "index": 0 }]]
     },
-    "Webhook - Manual Trigger (optional)": {
-      "main": [[{ "node": "Fetch Content Queue (GitHub)", "type": "main", "index": 0 }]]
-    },
     "Fetch Content Queue (GitHub)": {
-      "main": [[{ "node": "Split Out Queue Items", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Decode & Filter Due Posts", "type": "main", "index": 0 }]]
     },
-    "Split Out Queue Items": {
-      "main": [[{ "node": "Filter - Due & Queued", "type": "main", "index": 0 }]]
-    },
-    "Filter - Due & Queued": {
+    "Decode & Filter Due Posts": {
       "main": [[{ "node": "Post to X via OpenTweet", "type": "main", "index": 0 }]]
     },
     "Post to X via OpenTweet": {
+      "main": [[{ "node": "Build Updated Queue", "type": "main", "index": 0 }]]
+    },
+    "Build Updated Queue": {
       "main": [[{ "node": "Mark Posted (GitHub commit)", "type": "main", "index": 0 }]]
     }
   },
