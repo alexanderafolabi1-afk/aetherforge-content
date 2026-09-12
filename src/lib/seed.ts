@@ -1,4 +1,4 @@
-import type { DeckData, MetricKey, Milestone } from "./types";
+import type { DeckData, MetricKey, Milestone, ScheduledPost } from "./types";
 
 function yesterdayKey() {
   const d = new Date();
@@ -10,6 +10,13 @@ function daysAgo(n: number) {
   const d = new Date();
   d.setDate(d.getDate() - n);
   d.setHours(14 - (n % 5), 20, 0, 0);
+  return d.toISOString();
+}
+
+function daysFromNow(n: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  d.setHours(9, 0, 0, 0);
   return d.toISOString();
 }
 
@@ -113,6 +120,45 @@ export const seedMilestones: Milestone[] = [
     target: 12,
     hitAt: null,
     winLine: "A dozen ships left the bay. One of them will own the sky.",
+  },
+];
+
+export const seedContentQueue: ScheduledPost[] = [
+  {
+    id: "queue-1",
+    title: "The algorithm rewards frequency. Here's a 4-post cadence that doesn't burn out.",
+    body: "Thread breaking down the posting rhythm that got the last 30 days moving.",
+    vertical: "Threads",
+    scheduledFor: daysFromNow(1),
+    status: "queued",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "queue-2",
+    title: "Behind the visor: what a 2am post actually looks like before it ships.",
+    body: "Still + short caption. Let the image dock first, caption follows in reply.",
+    vertical: "Visuals",
+    scheduledFor: daysFromNow(2),
+    status: "queued",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "queue-3",
+    title: "Long-form: why your content isn't bad, it's in the wrong orbit.",
+    body: "Essay expansion of the top-performing thread from this week.",
+    vertical: "Longform",
+    scheduledFor: daysFromNow(3),
+    status: "queued",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "queue-4",
+    title: "Collab drop with a fellow drifter. Two gravity wells, one trajectory.",
+    body: "Cross-post coordinated for a simultaneous launch at 9am on both accounts.",
+    vertical: "Collabs",
+    scheduledFor: daysFromNow(4),
+    status: "queued",
+    createdAt: new Date().toISOString(),
   },
 ];
 
@@ -277,4 +323,5 @@ export const seedDeck: DeckData = {
     todayMessage: null,
     todayKey: null,
   },
+  contentQueue: seedContentQueue,
 };

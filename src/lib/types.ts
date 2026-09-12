@@ -65,6 +65,19 @@ export interface Vertical {
   brief: string;
 }
 
+export type QueuedPostStatus = "queued" | "posted" | "skipped";
+
+export interface ScheduledPost {
+  id: string;
+  title: string;
+  body: string;
+  vertical: string;
+  /** ISO timestamp the automation layer should publish this at. */
+  scheduledFor: string;
+  status: QueuedPostStatus;
+  createdAt: string;
+}
+
 export interface StreakState {
   count: number;
   lastCheckIn: string | null;
@@ -81,6 +94,7 @@ export interface DeckData {
   posts: Post[];
   verticals: Vertical[];
   streak: StreakState;
+  contentQueue: ScheduledPost[];
 }
 
 export type AstronautMood = "idle" | "steady" | "thriving" | "blazing";

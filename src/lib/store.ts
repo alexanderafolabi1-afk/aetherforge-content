@@ -10,6 +10,7 @@ import type {
   Note,
   RevenueLog,
   RevenueSource,
+  ScheduledPost,
   Stats,
 } from "./types";
 import { daysBetween, todayKey, uid } from "./utils";
@@ -34,6 +35,16 @@ interface DeckStore extends DeckData {
   replayMilestone: (id: string) => void;
   dismissCelebration: () => void;
   resetDemo: () => void;
+  queuePost: (input: Omit<ScheduledPost, "id" | "status" | "createdAt">) => void;
+  removeQueuedPost: (id: string) => void;
+  markQueuePosted: (id: string) => void;
+  skipQueuedPost: (id: string) => void;
+}
+
+export function nextQueuedPost(queue: ScheduledPost[]) {
+  return queue
+    .filter((p) => p.status === "queued")
+    .sort((a, b) => Date.parse(a.scheduledFor) - Date.parse(b.scheduledFor))[0];
 }
 
 export function monthlyRevenue(stats: Stats) {
@@ -201,6 +212,36 @@ export const useDeckStore = create<DeckStore>()(
         });
       },
       dismissCelebration: () => set({ celebration: null }),
+      queuePost: (input) => {
+        const item: ScheduledPost = {
+          ...input,
+          id: uid(),
+          status: "queued",
+          createdAt: new Date().toISOString(),
+        };
+        set({
+          contentQueue: [...get().contentQueue, item].sort(
+            (a, b) => Date.parse(a.scheduledFor) - Date.parse(b.scheduledFor),
+          ),
+        });
+      },
+      removeQueuedPost: (id) => {
+        set({ contentQueue: get().contentQueue.filter((p) => p.id !== id) });
+      },
+      markQueuePosted: (id) => {
+        set({
+          contentQueue: get().contentQueue.map((p) =>
+            p.id === id ? { ...p, status: "posted" } : p,
+          ),
+        });
+      },
+      skipQueuedPost: (id) => {
+        set({
+          contentQueue: get().contentQueue.map((p) =>
+            p.id === id ? { ...p, status: "skipped" } : p,
+          ),
+        });
+      },
       resetDemo: () =>
         set({
           ...seedDeck,
@@ -224,6 +265,7 @@ export const useDeckStore = create<DeckStore>()(
         posts: state.posts,
         verticals: state.verticals,
         streak: state.streak,
+        contentQueue: state.contentQueue,
       }),
     },
   ),
