@@ -33,6 +33,7 @@ export function LogPanel({
   const [revNote, setRevNote] = useState("");
   const [note, setNote] = useState("");
   const [draft, setDraft] = useState<Partial<Stats>>({});
+  const [committingTelemetry, setCommittingTelemetry] = useState(false);
 
   return (
     <Card className="h-full" id="log-panel">
@@ -181,8 +182,11 @@ export function LogPanel({
             ))}
             <Button
               type="button"
+              disabled={committingTelemetry}
               onClick={async () => {
+                setCommittingTelemetry(true);
                 const ok = await requestPinConfirm("commit telemetry changes");
+                setCommittingTelemetry(false);
                 if (!ok) return;
                 const clean: Partial<Stats> = {};
                 for (const [k, v] of Object.entries(draft) as [keyof Stats, number][]) {

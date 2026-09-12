@@ -88,8 +88,20 @@ function defaultScheduleValue() {
   return toLocalInputValue(d);
 }
 
-/** Downloads the live queue as content-queue.json, ready to commit into data/ for the automation layer (see AUTOMATION_GUIDE.md). */
-function exportQueueJson(queue: ScheduledPost[]) {
+/**
+ * Downloads the live queue as content-queue.json, ready to commit into data/
+ * for the automation layer (see AUTOMATION_GUIDE.md).
+ *
+ * The PIN check lives inside this function, not just at the call site — no
+ * download can happen without a confirmed PIN, regardless of what calls it.
+ */
+async function exportQueueJson(
+  queue: ScheduledPost[],
+  requestPinConfirm: (actionLabel: string) => Promise<boolean>,
+): Promise<boolean> {
+  const ok = await requestPinConfirm("export the content queue");
+  if (!ok) return false;
+
   const blob = new Blob([JSON.stringify(queue, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -99,6 +111,7 @@ function exportQueueJson(queue: ScheduledPost[]) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+  return true;
 }
 
 export function ContentQueuePanel({
@@ -119,6 +132,7 @@ export function ContentQueuePanel({
   const [vertical, setVertical] = useState(verticals[0]?.name ?? "Threads");
   const [language, setLanguage] = useState<PostLanguage>("en");
   const [scheduledFor, setScheduledFor] = useState(defaultScheduleValue());
+  const [exporting, setExporting] = useState(false);
 
   const ordered = [...queue].sort(
     (a, b) => Date.parse(a.scheduledFor) - Date.parse(b.scheduledFor),
@@ -136,12 +150,14 @@ export function ContentQueuePanel({
           <Button
             size="sm"
             variant="outline"
-            disabled={queue.length === 0}
+            disabled={queue.length === 0 || exporting}
             onClick={async () => {
-              const ok = await requestPinConfirm("export the content queue");
-              if (!ok) return;
-              exportQueueJson(queue);
-              toast("Queue exported. Commit it to data/content-queue.json — see AUTOMATION_GUIDE.md.");
+              setExporting(true);
+              const didExport = await exportQueueJson(queue, requestPinConfirm);
+              setExporting(false);
+              if (didExport) {
+                toast("Queue exported. Commit it to data/content-queue.json — see AUTOMATION_GUIDE.md.");
+              }
             }}
           >
             <Download className="size-3.5" />

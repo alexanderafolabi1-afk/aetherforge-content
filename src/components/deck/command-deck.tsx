@@ -31,13 +31,19 @@ export function CommandDeck() {
   const [pinActionLabel, setPinActionLabel] = useState("");
   const pinResolverRef = useRef<((ok: boolean) => void) | null>(null);
 
-  const requestPinConfirm = useCallback((actionLabel: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-      pinResolverRef.current = resolve;
-      setPinActionLabel(actionLabel);
-      setPinDialogOpen(true);
-    });
-  }, []);
+  const requestPinConfirm = useCallback(
+    (actionLabel: string): Promise<boolean> => {
+      // Fail closed rather than orphaning a pending confirmation if two
+      // restricted actions are triggered before the first one resolves.
+      if (pinResolverRef.current) return Promise.resolve(false);
+      return new Promise((resolve) => {
+        pinResolverRef.current = resolve;
+        setPinActionLabel(actionLabel);
+        setPinDialogOpen(true);
+      });
+    },
+    [],
+  );
 
   const handlePinResult = (ok: boolean) => {
     setPinDialogOpen(false);
