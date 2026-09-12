@@ -14,8 +14,10 @@ import { useDeckStore } from "@/lib/store";
 
 export function CommandBar({
   onOpenConnectors,
+  onNavigateToLog,
 }: {
   onOpenConnectors: () => void;
+  onNavigateToLog: () => void;
 }) {
   const streak = useDeckStore((s) => s.streak);
   const checkIn = useDeckStore((s) => s.checkIn);
@@ -103,9 +105,7 @@ export function CommandBar({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onSelect={() => document.getElementById("log-panel")?.scrollIntoView({ behavior: "smooth" })}
-              >
+              <DropdownMenuItem onSelect={onNavigateToLog}>
                 Log a haul / note
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={onOpenConnectors}>

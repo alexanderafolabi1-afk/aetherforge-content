@@ -21,6 +21,7 @@ This is the live **Command Deck** (the dashboard you open every day). Data lives
 | **Top posts** | This week’s best transmissions. |
 | **Mission log** | Hand-log hauls, notes, and telemetry until X/Sheets/Stripe are connected. |
 | **Connectors** | Instructions for docking live APIs later. Nothing secret lives in the browser. |
+| **Executive Briefing tab** | A second screen (Deck / Briefing switcher) with an automated morning summary: engagement velocity, follower growth pace, estimated revenue, and top-performing verticals — all derived from live store data. |
 
 Numbers persist in `localStorage` under the key `aetherforge-command-deck`.
 
@@ -60,6 +61,7 @@ aetherforge-content/
 │       ├── galaxy-map.tsx     Planets / verticals
 │       ├── top-posts.tsx      Content highlights
 │       ├── log-panel.tsx      Haul / note / telemetry forms
+│       ├── executive-briefing.tsx  Morning summary (Briefing tab)
 │       └── celebration.tsx    Full-screen win moment
 └── .github/workflows/pages.yml  Auto-publish to GitHub Pages
 ```
