@@ -103,9 +103,26 @@ Setup (above) is one-time. Once the n8n workflow is imported and active, here's 
 4. **Commit.** Replace `data/content-queue.json` in this repo with the freshly downloaded file and push (or upload via the GitHub web UI if you're not at a terminal). This is the step that actually hands new posts to the automation — **the Export button does not talk to GitHub or n8n by itself**, it only produces the file.
 5. **Flip the status toggle.** In the header, next to the refresh button, there's an **Automation live / idle** toggle. Set it to **live** once you've confirmed the n8n workflow is active and importing correctly, so the deck's own UI reflects reality. This is a manual flag you control — the browser has no way to actually ping your n8n instance (no webhook URL or credentials live in the frontend, by design), so treat it as a personal reminder rather than a live health check.
 6. **Let the schedule trigger run.** n8n polls `data/content-queue.json` every 15 minutes (per the template's Schedule Trigger), posts anything `queued` and due, and commits the updated statuses back.
-7. **Reconcile.** Next time you open the Launch queue panel, mark those same items posted with the ✓ button (see step 7 above) so the in-app view matches what actually went out. Repeat from step 1 the next day.
+7. **Verify with the telemetry check script.** Run `npm run check-queue` (or `node scripts/check-queue-telemetry.mjs`) against your local checkout. It validates `data/content-queue.json` against the exact shape n8n's Filter node expects, and — most usefully — flags any `queued` item whose `scheduledFor` has already passed. That's the local, repo-side signal that the n8n pipeline isn't actually keeping up, independent of whatever the header's Automation toggle says. It writes a snapshot to `data/automation-status.json` and appends a line to `data/automation-status.log` (both gitignored by default — commit them yourself, or wire a scheduled job to run the script and commit, if you want that history tracked).
+8. **Reconcile.** Next time you open the Launch queue panel, mark those same items posted with the ✓ button (see step 7 under Setup) so the in-app view matches what actually went out. Repeat from step 1 the next day.
 
-The only step that changes day-to-day is 2–4: stage → export → commit. Everything else (the n8n side) runs unattended once it's active.
+The only step that changes day-to-day is 2–4: stage → export → commit. Step 7 is your health check; everything else (the n8n side) runs unattended once it's active.
+
+### Reading the telemetry check's output
+
+```
+$ npm run check-queue
+
+Checked 4 item(s) in data/content-queue.json
+  queued=3 posted=1 skipped=0
+  languages: {"en":1,"es":1,"ja":1,"pt":1}
+  next up: "The algorithm rewards frequency..." (en) at 2026-09-14T09:00:00.000Z
+✔ Queue looks healthy — no shape issues, nothing overdue.
+Status written to data/automation-status.json
+Log appended to data/automation-status.log
+```
+
+A non-zero exit code means either the file doesn't match the `ScheduledPost` shape (bad export, hand-edited file, etc.) or something is overdue — treat either as "go check the n8n execution log," not as an in-app problem.
 
 ## Reference
 
@@ -114,4 +131,5 @@ The only step that changes day-to-day is 2–4: stage → export → commit. Eve
 - Queue UI: `src/components/deck/content-queue.tsx` (Launch queue panel, Queue/Preview tabs, Export button)
 - Next-up preview: `src/components/deck/upcoming-post.tsx` (language + publish-time card on the main screen)
 - Automation status toggle: `src/components/deck/command-bar.tsx` (`automationActive` / `toggleAutomation` in `src/lib/store.ts`) — manual flag, not a live n8n health check
+- Telemetry check script: `scripts/check-queue-telemetry.mjs` (`npm run check-queue`) — validates `data/content-queue.json` and flags overdue items; writes `data/automation-status.json` + `data/automation-status.log`
 - Workflow template: `n8n-workflow-template.json`
