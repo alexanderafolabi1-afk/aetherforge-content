@@ -1,4 +1,4 @@
-import { Flame, Plus, Satellite, Settings2 } from "lucide-react";
+import { Flame, Plus, RefreshCw, Satellite, Settings2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +36,14 @@ export function CommandBar({
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          <Button
+            size="icon"
+            variant="outline"
+            aria-label="Refresh"
+            onClick={() => window.location.reload()}
+          >
+            <RefreshCw className="size-4" />
+          </Button>
           <Badge variant={checked ? "gold" : "primary"} className="h-8 gap-1 px-2 sm:px-2.5">
             <Flame className="size-3" />
             <span className="tabular-nums normal-case tracking-normal">
