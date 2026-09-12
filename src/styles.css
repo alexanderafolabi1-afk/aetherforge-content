@@ -167,6 +167,31 @@
   font-family: var(--font-display);
 }
 
+/*
+ * Installed as a homescreen PWA (display: standalone) with viewport-fit=cover,
+ * the OS status bar / notch / gesture bar overlay the app instead of pushing
+ * it down, so fixed/sticky chrome must reserve space for them explicitly.
+ */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-px {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+@media (min-width: 640px) {
+  .safe-px {
+    padding-left: max(1.5rem, env(safe-area-inset-left));
+    padding-right: max(1.5rem, env(safe-area-inset-right));
+  }
+}
+
 .deck-card {
   background: color-mix(in oklab, var(--color-card) 88%, transparent);
   box-shadow: var(--shadow-border);

@@ -28,13 +28,13 @@ export function CommandDeck() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="relative min-h-dvh w-full overflow-x-hidden bg-background">
+      <div className="safe-bottom relative min-h-dvh w-full overflow-x-hidden bg-background">
         <div className="pointer-events-none fixed inset-0 opacity-80">
           <Starfield />
         </div>
         <div className="relative z-10">
           <CommandBar onOpenConnectors={() => setConnectors(true)} />
-          <main className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 pb-16 sm:px-6 sm:py-6">
+          <main className="safe-px mx-auto flex w-full max-w-6xl flex-col gap-4 py-4 pb-16 sm:py-6">
             <Hero celebrating={Boolean(celebration)} />
             <p className="px-1 text-[11px] leading-relaxed text-muted-foreground">
               {CONNECTOR_BRIEF.headline}. Log real hauls below, or open Connectors when you are ready to dock live APIs.

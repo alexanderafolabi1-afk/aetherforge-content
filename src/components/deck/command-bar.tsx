@@ -21,8 +21,8 @@ export function CommandBar({
   const checked = streak.todayKey === todayKey();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/75 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
+    <header className="safe-top sticky top-0 z-40 border-b border-border/80 bg-background/75 backdrop-blur-md">
+      <div className="safe-px mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-primary shadow-[var(--shadow-border)]">
             <Satellite className="size-4" />
@@ -35,7 +35,7 @@ export function CommandBar({
           </div>
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <Button
             size="icon"
             variant="outline"
