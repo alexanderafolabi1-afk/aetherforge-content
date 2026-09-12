@@ -25,6 +25,16 @@ export function formatPct(n: number) {
   return `${n.toFixed(1)}%`;
 }
 
+export function formatScheduled(iso: string) {
+  return new Date(iso).toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function formatRelative(iso: string) {
   const then = Date.parse(iso);
   const delta = Date.now() - then;

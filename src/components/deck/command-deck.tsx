@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CelebrationOverlay } from "./celebration";
 import { CommandBar } from "./command-bar";
 import { ConnectorsDialog } from "./connectors";
+import { ContentQueuePanel } from "./content-queue";
 import { GalaxyMap } from "./galaxy-map";
 import { Hero } from "./hero";
 import { LogPanel } from "./log-panel";
@@ -48,6 +49,7 @@ export function CommandDeck() {
               <GalaxyMap />
               <TopPosts />
             </div>
+            <ContentQueuePanel />
             <LogPanel />
           </main>
         </div>
