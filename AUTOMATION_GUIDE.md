@@ -93,9 +93,25 @@ After n8n commits `status: "posted"` back to `data/content-queue.json`, the Comm
 
 A proper two-way sync (the app reading `data/content-queue.json` directly, or a small API) is a reasonable next step but isn't built yet — this guide reflects what's actually wired up today.
 
+## Daily execution (once setup is done)
+
+Setup (above) is one-time. Once the n8n workflow is imported and active, here's the loop you actually repeat every day:
+
+1. **Check what's next.** The Command Deck's main screen shows a **Next up** card right below the hero — it surfaces the earliest `queued` item's **language badge** and **publication timestamp** at a glance, so you don't need to open the Launch queue panel just to check what's about to fire.
+2. **Stage or adjust posts.** Open the **Launch queue** panel, add new transmissions via **Queue** (headline, dispatch, vertical, language, fire time), and use the **Preview** tab to markdown-check each language variant before it goes out.
+3. **Export.** Click **Export** in the Launch queue header. This downloads the current `content-queue.json` with every item you've staged — queued, posted, and skipped alike.
+4. **Commit.** Replace `data/content-queue.json` in this repo with the freshly downloaded file and push (or upload via the GitHub web UI if you're not at a terminal). This is the step that actually hands new posts to the automation — **the Export button does not talk to GitHub or n8n by itself**, it only produces the file.
+5. **Flip the status toggle.** In the header, next to the refresh button, there's an **Automation live / idle** toggle. Set it to **live** once you've confirmed the n8n workflow is active and importing correctly, so the deck's own UI reflects reality. This is a manual flag you control — the browser has no way to actually ping your n8n instance (no webhook URL or credentials live in the frontend, by design), so treat it as a personal reminder rather than a live health check.
+6. **Let the schedule trigger run.** n8n polls `data/content-queue.json` every 15 minutes (per the template's Schedule Trigger), posts anything `queued` and due, and commits the updated statuses back.
+7. **Reconcile.** Next time you open the Launch queue panel, mark those same items posted with the ✓ button (see step 7 above) so the in-app view matches what actually went out. Repeat from step 1 the next day.
+
+The only step that changes day-to-day is 2–4: stage → export → commit. Everything else (the n8n side) runs unattended once it's active.
+
 ## Reference
 
 - Queue data model: `src/lib/types.ts` (`ScheduledPost`, `PostLanguage`)
 - Queue actions: `src/lib/store.ts` (`queuePost`, `markQueuePosted`, `skipQueuedPost`, `removeQueuedPost`, `nextQueuedPost`)
-- Queue UI: `src/components/deck/content-queue.tsx` (Launch queue panel, Queue/Preview tabs)
+- Queue UI: `src/components/deck/content-queue.tsx` (Launch queue panel, Queue/Preview tabs, Export button)
+- Next-up preview: `src/components/deck/upcoming-post.tsx` (language + publish-time card on the main screen)
+- Automation status toggle: `src/components/deck/command-bar.tsx` (`automationActive` / `toggleAutomation` in `src/lib/store.ts`) — manual flag, not a live n8n health check
 - Workflow template: `n8n-workflow-template.json`
