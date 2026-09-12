@@ -29,7 +29,7 @@ export function Astronaut({
         aria-hidden
       />
       <img
-        src="/brand/astronaut.png"
+        src={`${import.meta.env.BASE_URL}brand/astronaut.png`}
         alt="AetherForge astronaut, visor reflecting a nebula"
         width={720}
         height={720}
