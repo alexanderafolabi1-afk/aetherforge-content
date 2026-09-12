@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +12,7 @@ import { Hero } from "./hero";
 import { LogPanel } from "./log-panel";
 import { MilestonesPanel } from "./milestones";
 import { OrbitVisual } from "./orbit";
+import { PinConfirmDialog } from "./pin-confirm-dialog";
 import { Starfield } from "./starfield";
 import { StatsGrid } from "./stats-grid";
 import { TopPosts } from "./top-posts";
@@ -25,6 +26,24 @@ export function CommandDeck() {
   const pendingLogScroll = useRef(false);
   const celebration = useDeckStore((s) => s.celebration);
   const dismiss = useDeckStore((s) => s.dismissCelebration);
+
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pinActionLabel, setPinActionLabel] = useState("");
+  const pinResolverRef = useRef<((ok: boolean) => void) | null>(null);
+
+  const requestPinConfirm = useCallback((actionLabel: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      pinResolverRef.current = resolve;
+      setPinActionLabel(actionLabel);
+      setPinDialogOpen(true);
+    });
+  }, []);
+
+  const handlePinResult = (ok: boolean) => {
+    setPinDialogOpen(false);
+    pinResolverRef.current?.(ok);
+    pinResolverRef.current = null;
+  };
 
   useEffect(() => {
     void Promise.resolve(useDeckStore.persist.rehydrate()).then(() => {
@@ -79,8 +98,8 @@ export function CommandDeck() {
                   <GalaxyMap />
                   <TopPosts />
                 </div>
-                <ContentQueuePanel />
-                <LogPanel />
+                <ContentQueuePanel requestPinConfirm={requestPinConfirm} />
+                <LogPanel requestPinConfirm={requestPinConfirm} />
               </main>
             </TabsContent>
             <TabsContent value="briefing" className="mt-0">
@@ -91,6 +110,7 @@ export function CommandDeck() {
           </Tabs>
         </div>
         <ConnectorsDialog open={connectors} onOpenChange={setConnectors} />
+        <PinConfirmDialog open={pinDialogOpen} actionLabel={pinActionLabel} onResult={handlePinResult} />
         {celebration ? (
           <CelebrationOverlay event={celebration} onDismiss={dismiss} />
         ) : null}

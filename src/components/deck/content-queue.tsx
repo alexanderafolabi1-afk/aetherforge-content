@@ -101,7 +101,11 @@ function exportQueueJson(queue: ScheduledPost[]) {
   URL.revokeObjectURL(url);
 }
 
-export function ContentQueuePanel() {
+export function ContentQueuePanel({
+  requestPinConfirm,
+}: {
+  requestPinConfirm: (actionLabel: string) => Promise<boolean>;
+}) {
   const queue = useDeckStore((s) => s.contentQueue);
   const verticals = useDeckStore((s) => s.verticals);
   const queuePost = useDeckStore((s) => s.queuePost);
@@ -133,7 +137,9 @@ export function ContentQueuePanel() {
             size="sm"
             variant="outline"
             disabled={queue.length === 0}
-            onClick={() => {
+            onClick={async () => {
+              const ok = await requestPinConfirm("export the content queue");
+              if (!ok) return;
               exportQueueJson(queue);
               toast("Queue exported. Commit it to data/content-queue.json — see AUTOMATION_GUIDE.md.");
             }}

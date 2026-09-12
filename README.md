@@ -22,6 +22,7 @@ This is the live **Command Deck** (the dashboard you open every day). Data lives
 | **Mission log** | Hand-log hauls, notes, and telemetry until X/Sheets/Stripe are connected. |
 | **Connectors** | Instructions for docking live APIs later. Nothing secret lives in the browser. |
 | **Executive Briefing tab** | A second screen (Deck / Briefing switcher) with an automated morning summary: engagement velocity, follower growth pace, estimated revenue, and top-performing verticals — all derived from live store data. |
+| **Admin PIN lock** | Prompts for a PIN on first open (and every fresh app open after that), plus re-confirms it before Export and Commit telemetry. A local screen lock for a shared/borrowed device — not real account security. Reset it from Connectors. |
 
 Numbers persist in `localStorage` under the key `aetherforge-command-deck`.
 
@@ -50,7 +51,8 @@ aetherforge-content/
 │   │   ├── types.ts           TypeScript shapes
 │   │   ├── copy.ts            Space-pun lines and greetings
 │   │   ├── format.ts          47.8K / $4,280 helpers
-│   │   └── connectors.ts      How to wire X / Sheets / tips later
+│   │   ├── connectors.ts      How to wire X / Sheets / tips later
+│   │   └── pin.ts             Salted-hash PIN storage (no plaintext)
 │   ├── components/ui/         Buttons, cards, dialogs (Radix)
 │   └── components/deck/       The actual observatory
 │       ├── command-deck.tsx   Layout
@@ -62,6 +64,8 @@ aetherforge-content/
 │       ├── top-posts.tsx      Content highlights
 │       ├── log-panel.tsx      Haul / note / telemetry forms
 │       ├── executive-briefing.tsx  Morning summary (Briefing tab)
+│       ├── pin-gate.tsx       Full-screen PIN lock on app open
+│       ├── pin-confirm-dialog.tsx  Re-confirm PIN for restricted actions
 │       └── celebration.tsx    Full-screen win moment
 └── .github/workflows/pages.yml  Auto-publish to GitHub Pages
 ```

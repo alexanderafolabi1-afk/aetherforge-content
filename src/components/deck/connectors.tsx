@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { CONNECTORS } from "@/lib/connectors";
 import { CONNECTOR_BRIEF } from "@/lib/copy";
+import { clearPin } from "@/lib/pin";
 import { useDeckStore } from "@/lib/store";
 
 export function ConnectorsDialog({
@@ -18,6 +20,7 @@ export function ConnectorsDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const resetDemo = useDeckStore((s) => s.resetDemo);
+  const [pinResetConfirming, setPinResetConfirming] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -45,6 +48,40 @@ export function ConnectorsDialog({
           visor. Sheets and Stripe follow the same pattern: inbound numbers, outbound
           glory.
         </div>
+        <div className="rounded-xl border border-border p-3">
+          <p className="text-sm font-medium">Admin PIN</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Guards this device's deck on open, plus Export and telemetry commits. Stored as a
+            salted hash only — never in plaintext.
+          </p>
+          {pinResetConfirming ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => {
+                  clearPin();
+                  window.location.reload();
+                }}
+              >
+                Confirm reset
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setPinResetConfirming(false)}>
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-2"
+              onClick={() => setPinResetConfirming(true)}
+            >
+              Reset PIN
+            </Button>
+          )}
+        </div>
+
         <Button
           variant="outline"
           onClick={() => {

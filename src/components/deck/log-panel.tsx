@@ -16,7 +16,11 @@ const SOURCES: { id: RevenueSource; label: string }[] = [
   { id: "other", label: "Other" },
 ];
 
-export function LogPanel() {
+export function LogPanel({
+  requestPinConfirm,
+}: {
+  requestPinConfirm: (actionLabel: string) => Promise<boolean>;
+}) {
   const addRevenue = useDeckStore((s) => s.addRevenue);
   const addNote = useDeckStore((s) => s.addNote);
   const patchStats = useDeckStore((s) => s.patchStats);
@@ -177,7 +181,9 @@ export function LogPanel() {
             ))}
             <Button
               type="button"
-              onClick={() => {
+              onClick={async () => {
+                const ok = await requestPinConfirm("commit telemetry changes");
+                if (!ok) return;
                 const clean: Partial<Stats> = {};
                 for (const [k, v] of Object.entries(draft) as [keyof Stats, number][]) {
                   if (typeof v === "number" && Number.isFinite(v)) {
