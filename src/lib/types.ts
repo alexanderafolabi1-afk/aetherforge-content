@@ -67,11 +67,22 @@ export interface Vertical {
 
 export type QueuedPostStatus = "queued" | "posted" | "skipped";
 
+export type PostLanguage = "en" | "es" | "pt" | "ja" | "fr";
+
+export const POST_LANGUAGE_LABEL: Record<PostLanguage, string> = {
+  en: "English",
+  es: "Español",
+  pt: "Português",
+  ja: "日本語",
+  fr: "Français",
+};
+
 export interface ScheduledPost {
   id: string;
   title: string;
   body: string;
   vertical: string;
+  language: PostLanguage;
   /** ISO timestamp the automation layer should publish this at. */
   scheduledFor: string;
   status: QueuedPostStatus;
