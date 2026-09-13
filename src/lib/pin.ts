@@ -84,3 +84,31 @@ export function markSessionUnlocked(): void {
 export function clearSessionUnlock(): void {
   sessionStorage.removeItem(SESSION_KEY);
 }
+
+/**
+ * type="password" is what actually masks input in every browser; type="tel"
+ * only *looks* masked here because of the -webkit-text-security CSS rule
+ * paired with it, which Firefox and other non-WebKit/Blink engines don't
+ * implement — in those browsers a PIN typed into a "tel" field would render
+ * in plain text. Feature-detect support and only use "tel" (which avoids
+ * Safari's password-manager overlay stealing focus/taps on this numeric
+ * PIN) where the masking actually works; otherwise fall back to the native
+ * masking of type="password".
+ *
+ * A PIN is also not guaranteed to be numeric — setup only ever enforced a
+ * minimum length, so older PINs may contain letters or symbols. type="tel"
+ * doesn't restrict input either way, so this never needs a `pattern`
+ * attribute (which would silently block a valid non-numeric PIN's form
+ * submission before verifyPin ever runs).
+ */
+export const PIN_INPUT_TYPE: "tel" | "password" =
+  typeof CSS !== "undefined" &&
+  typeof CSS.supports === "function" &&
+  CSS.supports("-webkit-text-security", "disc")
+    ? "tel"
+    : "password";
+
+export const pinInputProps =
+  PIN_INPUT_TYPE === "tel"
+    ? { type: PIN_INPUT_TYPE, className: "pin-mask" }
+    : { type: PIN_INPUT_TYPE };

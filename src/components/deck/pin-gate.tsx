@@ -9,6 +9,7 @@ import {
   hasStoredPin,
   isSessionUnlocked,
   markSessionUnlocked,
+  pinInputProps,
   setPin,
   verifyPin,
 } from "@/lib/pin";
@@ -118,12 +119,10 @@ export function PinGate({ children }: { children: (logout: () => void) => ReactN
             <Label htmlFor="pin-input">{needsSetup ? "New PIN" : "PIN"}</Label>
             <Input
               id="pin-input"
-              type="tel"
+              {...pinInputProps}
               inputMode="numeric"
-              pattern="[0-9]*"
               autoFocus
               autoComplete="off"
-              className="pin-mask"
               value={pin}
               disabled={inCooldown}
               onChange={(e) => setPinValue(e.target.value)}
@@ -135,11 +134,9 @@ export function PinGate({ children }: { children: (logout: () => void) => ReactN
               <Label htmlFor="pin-confirm">Confirm PIN</Label>
               <Input
                 id="pin-confirm"
-                type="tel"
+                {...pinInputProps}
                 inputMode="numeric"
-                pattern="[0-9]*"
                 autoComplete="off"
-                className="pin-mask"
                 value={confirmPin}
                 onChange={(e) => setConfirmPin(e.target.value)}
                 placeholder="••••"
