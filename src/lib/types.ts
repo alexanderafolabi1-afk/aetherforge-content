@@ -96,6 +96,29 @@ export interface StreakState {
   todayKey: string | null;
 }
 
+/** Written by the n8n metrics-sync flow to data/live-metrics.json — see AUTOMATION_GUIDE.md. */
+export interface LiveMetricsFile {
+  updatedAt: string;
+  stats: Stats;
+  posts: Post[];
+}
+
+/** One autonomous auto-reply, written by n8n to data/x-automation-state.json. */
+export interface ReplyLogEntry {
+  mentionId: string;
+  mentionAuthor: string;
+  mentionText: string;
+  replyText: string;
+  replyTweetId: string;
+  repliedAt: string;
+}
+
+/** Full shape of data/x-automation-state.json — sinceMentionId is n8n's own pagination cursor, ignored by the PWA. */
+export interface XAutomationStateFile {
+  sinceMentionId: string | null;
+  replyLog: ReplyLogEntry[];
+}
+
 export interface DeckData {
   commanderName: string;
   stats: Stats;

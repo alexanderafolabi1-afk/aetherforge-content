@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { pickDailyLine, CHECK_IN_LINES, MILESTONE_HITS, pickLine } from "./copy";
+import { fetchLiveMetrics, fetchXAutomationState } from "./live-sync";
 import { seedDeck } from "./seed";
 import type {
   AstronautMood,
@@ -8,6 +9,7 @@ import type {
   MetricKey,
   Milestone,
   Note,
+  ReplyLogEntry,
   RevenueLog,
   RevenueSource,
   ScheduledPost,
@@ -27,6 +29,12 @@ interface DeckStore extends DeckData {
   /** Manual status flag for the header toggle — not a live ping of any n8n webhook. */
   automationActive: boolean;
   toggleAutomation: () => void;
+  /** ISO timestamp of the last successful data/live-metrics.json pull, or null before the first one lands. */
+  liveMetricsUpdatedAt: string | null;
+  /** Autonomous auto-replies n8n has posted, pulled read-only from data/x-automation-state.json. */
+  replyLog: ReplyLogEntry[];
+  /** Pulls data/live-metrics.json and data/x-automation-state.json from GitHub and merges what's there into the deck. */
+  syncLiveData: () => Promise<void>;
   markHydrated: () => void;
   setCommanderName: (name: string) => void;
   patchStats: (patch: Partial<Stats>) => void;
@@ -82,6 +90,15 @@ export function astronautMood(data: Pick<DeckData, "stats" | "streak">): Astrona
   return "idle";
 }
 
+function verticalsWithRealCounts(
+  verticals: DeckData["verticals"],
+  posts: DeckData["posts"],
+): DeckData["verticals"] {
+  const counts = new Map<string, number>();
+  for (const p of posts) counts.set(p.vertical, (counts.get(p.vertical) ?? 0) + 1);
+  return verticals.map((v) => ({ ...v, posts: counts.get(v.name) ?? 0 }));
+}
+
 function applyHits(state: DeckData, forceId?: string): { next: DeckData; hits: Milestone[] } {
   const now = new Date().toISOString();
   const hits: Milestone[] = [];
@@ -106,6 +123,27 @@ export const useDeckStore = create<DeckStore>()(
       celebration: null,
       automationActive: false,
       toggleAutomation: () => set({ automationActive: !get().automationActive }),
+      liveMetricsUpdatedAt: null,
+      replyLog: [],
+      syncLiveData: async () => {
+        const [metrics, automation] = await Promise.all([fetchLiveMetrics(), fetchXAutomationState()]);
+        if (metrics) {
+          const posts = metrics.posts;
+          const verticals = verticalsWithRealCounts(get().verticals, posts);
+          const applied = applyHits({ ...get(), stats: metrics.stats, posts, verticals });
+          const hit = applied.hits[0];
+          set({
+            ...applied.next,
+            liveMetricsUpdatedAt: metrics.updatedAt,
+            celebration: hit
+              ? { title: hit.title, body: hit.winLine, kind: "milestone" }
+              : get().celebration,
+          });
+        }
+        if (automation) {
+          set({ replyLog: automation.replyLog });
+        }
+      },
       markHydrated: () => set({ hydrated: true }),
       setCommanderName: (commanderName) => set({ commanderName }),
       patchStats: (patch) => {
@@ -251,9 +289,11 @@ export const useDeckStore = create<DeckStore>()(
         set({
           ...seedDeck,
           hydrated: true,
+          liveMetricsUpdatedAt: null,
+          replyLog: [],
           celebration: {
-            title: "Telemetry reset",
-            body: "Demo orbit restored. The universe is pretending with you again.",
+            title: "Local cache cleared",
+            body: "Everything hand-logged in this browser is gone. The next live sync repopulates real numbers.",
             kind: "generic",
           },
         }),
@@ -272,6 +312,8 @@ export const useDeckStore = create<DeckStore>()(
         streak: state.streak,
         contentQueue: state.contentQueue,
         automationActive: state.automationActive,
+        liveMetricsUpdatedAt: state.liveMetricsUpdatedAt,
+        replyLog: state.replyLog,
       }),
     },
   ),

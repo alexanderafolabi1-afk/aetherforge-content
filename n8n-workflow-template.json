@@ -1,34 +1,27 @@
 {
-  "name": "AetherForge - Content Queue to X (via OpenTweet)",
+  "name": "AetherForge Daily Tweet Engine",
   "nodes": [
     {
       "parameters": {
-        "content": "## AetherForge auto-poster (simplified)\n\n1. Import this workflow. Add 2 credentials: **GitHub Contents Token** (fine-grained PAT, Contents: Read and write, scoped to this one repo) and **OpenTweet API Key**.\n2. The Fetch / Mark Posted node URLs already point at this repo (alexanderafolabi1-afk/aetherforge-content). Editing them is only needed if you forked the repo.\n3. Point **Post to X via OpenTweet** at OpenTweet's real endpoint/auth scheme — the URL here is a placeholder; there's no verified public spec to hardcode against.\n4. Test with **Execute workflow**, then toggle **Active**. No file exports, no Code node left for you to write — it's all wired.\n\nSelf-healing: the two GitHub HTTP nodes auto-retry 3x on transient failures (both are idempotent — safe to retry). The OpenTweet POST deliberately does NOT auto-retry, since retrying a create-tweet call on a lost response could double-post to X; a real failure there just waits for the next scheduled run.\n\nThe Command Deck's Connectors → GitHub Sync now commits the queue directly from the PWA. Nobody needs to touch data/content-queue.json by hand anymore — see AUTOMATION_GUIDE.md.",
-        "height": 380,
-        "width": 380
+        "content": "## AetherForge Daily Tweet Engine\n\nThree independent flows, each with its own Schedule Trigger — activate the whole workflow and all three run on their own cadence.\n\n**Setup (once):**\n1. Credentials → create **X OAuth1 API** (developer.x.com → your app → Keys and Tokens → API Key/Secret + Access Token/Secret, app permission = Read and Write). Used by every X node below.\n2. Credentials → create **GitHub Contents Token** (fine-grained PAT, Contents: Read and write, scoped to this one repo only). Used by every GitHub node below.\n3. In the two \"Set - Your X Account\" nodes (Reply flow + Metrics flow), fill in your numeric X user ID and handle. Find your numeric ID once via a site like tweeterid.com, or by calling `GET https://api.twitter.com/2/users/by/username/<handle>` yourself with the same credential in a REST client.\n4. Click each X/GitHub node once and hit \"Test step\" before activating — confirms the credential actually works before it's live.\n\n**Cost control (read this before activating the Reply/Metrics flows):** posting tweets is normally free, but reading mentions and metrics is billed under X's pay-as-you-go pricing once you're past Free-tier limits. Set a hard monthly spending cap in your X developer billing settings — that cap, not this workflow, is your real backstop. Both read flows are scheduled conservatively (mentions every 30 min, metrics once/day) and use since_id/small max_results to avoid re-fetching the same data twice, but check your actual per-call pricing before leaving this active for a long stretch.\n\n**Reply flow is fully autonomous by request — no human review step.** It posts immediately using a small template bank (no LLM call, so no added API cost). Everything it sends is logged read-only in the Command Deck's Mission Log → Replies tab so you can audit after the fact.",
+        "height": 560,
+        "width": 460
       },
-      "id": "a1b2c3d4-0000-4000-8000-000000000001",
+      "id": "b1000000-0000-4000-8000-000000000001",
       "name": "Setup Notes",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-280, -60]
+      "position": [-460, -700]
     },
+
+    { "parameters": { "content": "### Flow A — Post the queue\nSame flow as before, now posting for real to X (was a placeholder \"OpenTweet\" endpoint).", "height": 120, "width": 300 }, "id": "b1000000-0000-4000-8000-000000000090", "name": "Flow A Label", "type": "n8n-nodes-base.stickyNote", "typeVersion": 1, "position": [-40, -80] },
     {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "minutes",
-              "minutesInterval": 15
-            }
-          ]
-        }
-      },
-      "id": "a1b2c3d4-0000-4000-8000-000000000002",
+      "parameters": { "rule": { "interval": [{ "field": "minutes", "minutesInterval": 15 }] } },
+      "id": "b1000000-0000-4000-8000-000000000002",
       "name": "Schedule - Every 15 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-40, 200]
+      "position": [-40, 60]
     },
     {
       "parameters": {
@@ -38,71 +31,57 @@
         "genericAuthType": "httpHeaderAuth",
         "options": {}
       },
-      "id": "a1b2c3d4-0000-4000-8000-000000000004",
+      "id": "b1000000-0000-4000-8000-000000000004",
       "name": "Fetch Content Queue (GitHub)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [180, 200],
+      "position": [180, 60],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "Default (non-raw) Accept header — the response includes both `content` (base64) and `sha`, so this one request supplies everything the rest of the workflow needs. Retries 3x on transient failures (rate limits, blips) before giving up for this run — no manual re-trigger needed.",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "PLACEHOLDER_CREDENTIAL_ID",
-          "name": "GitHub Contents Token"
-        }
-      }
+      "notes": "Default (non-raw) Accept header — response includes both `content` (base64) and `sha`. Retries 3x on transient failures before giving up for this run.",
+      "credentials": { "httpHeaderAuth": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "GitHub Contents Token" } }
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// Decodes the fetched file and returns one item per post that's due to fire.\n// Each output item carries the original file's sha + full queue array so the\n// later \"Build Updated Queue\" step doesn't need to re-fetch anything.\nconst fetched = $input.first().json;\nconst sha = fetched.sha;\nconst decoded = Buffer.from(fetched.content, 'base64').toString('utf-8');\nconst queue = JSON.parse(decoded);\nconst now = Date.now();\n\nconst due = queue.filter(\n  (post) => post.status === 'queued' && new Date(post.scheduledFor).getTime() <= now,\n);\n\nreturn due.map((post) => ({\n  json: {\n    ...post,\n    _sha: sha,\n    _fullQueue: queue,\n  },\n}));"
+        "jsCode": "// Decodes the fetched file and returns one item per post that's due to fire,\n// with tweet text pre-built and hard-capped at 280 chars (X rejects longer).\nconst fetched = $input.first().json;\nconst sha = fetched.sha;\nconst decoded = Buffer.from(fetched.content, 'base64').toString('utf-8');\nconst queue = JSON.parse(decoded);\nconst now = Date.now();\n\nconst due = queue.filter(\n  (post) => post.status === 'queued' && new Date(post.scheduledFor).getTime() <= now,\n);\n\nreturn due.map((post) => {\n  let text = post.title + (post.body ? '\\n\\n' + post.body : '');\n  if (text.length > 280) text = text.slice(0, 277) + '...';\n  return { json: { ...post, tweetText: text, _sha: sha, _fullQueue: queue } };\n});"
       },
-      "id": "a1b2c3d4-0000-4000-8000-000000000005",
+      "id": "b1000000-0000-4000-8000-000000000005",
       "name": "Decode & Filter Due Posts",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [400, 200]
+      "position": [400, 60]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.opentweet.io/v1/tweets",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
-        },
+        "url": "https://api.twitter.com/2/tweets",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twitterOAuth1Api",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"text\": $json.title + ( $json.body ? \"\\n\\n\" + $json.body : \"\" ), \"lang\": $json.language, \"vertical\": $json.vertical } }}",
+        "jsonBody": "={{ { \"text\": $json.tweetText } }}",
         "options": {}
       },
-      "id": "a1b2c3d4-0000-4000-8000-000000000007",
-      "name": "Post to X via OpenTweet",
+      "id": "b1000000-0000-4000-8000-000000000007",
+      "name": "Post Tweet",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [620, 200],
-      "notes": "Placeholder endpoint — replace with OpenTweet's documented tweet-creation URL and auth scheme before activating. Leave \"Continue On Fail\" off: if a post fails here, the run stops before anything gets marked posted, so it safely retries next cycle instead of mismarking a mix of successes and failures. Deliberately NOT using retryOnFail here (unlike the GitHub nodes): retrying a create-tweet call on a timeout risks double-posting to X if the first attempt actually succeeded but the response was lost — there's no verified OpenTweet idempotency-key mechanism to make that safe. A genuine failure here waits for the next scheduled run instead.",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "PLACEHOLDER_CREDENTIAL_ID",
-          "name": "OpenTweet API Key"
-        }
-      }
+      "position": [620, 60],
+      "notes": "Real X API v2 tweet creation (replaces the old OpenTweet placeholder). Deliberately NOT using retryOnFail: retrying a create-tweet call on a timeout risks double-posting if the first attempt actually succeeded but the response was lost. A genuine failure here waits for the next scheduled run instead of retrying blind.",
+      "credentials": { "twitterOAuth1Api": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "X OAuth1 API" } }
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// Every item that reaches this node already posted successfully (a failed\n// HTTP call upstream halts the run instead of continuing, since \"Continue\n// On Fail\" is off on the OpenTweet node) — so it's safe to mark all of them.\nconst originalItems = $('Decode & Filter Due Posts').all();\nif (originalItems.length === 0) {\n  return [];\n}\n\nconst postedIds = new Set(originalItems.map((item) => item.json.id));\nconst sha = originalItems[0].json._sha;\nconst fullQueue = originalItems[0].json._fullQueue;\n\nconst updatedQueue = fullQueue.map((post) =>\n  postedIds.has(post.id) ? { ...post, status: 'posted' } : post,\n);\n\nconst content = Buffer.from(JSON.stringify(updatedQueue, null, 2), 'utf-8').toString('base64');\n\nreturn [\n  {\n    json: {\n      sha,\n      content,\n      message: `chore: mark ${postedIds.size} post(s) as posted (n8n)`,\n    },\n  },\n];"
+        "jsCode": "// Every item reaching this node already posted successfully (a failed HTTP\n// call upstream halts the run, since \"Continue On Fail\" is off on Post Tweet).\nconst originalItems = $('Decode & Filter Due Posts').all();\nif (originalItems.length === 0) return [];\n\nconst postedIds = new Set(originalItems.map((item) => item.json.id));\nconst sha = originalItems[0].json._sha;\nconst fullQueue = originalItems[0].json._fullQueue;\n\nconst updatedQueue = fullQueue.map((post) =>\n  postedIds.has(post.id) ? { ...post, status: 'posted' } : post,\n);\n\nconst content = Buffer.from(JSON.stringify(updatedQueue, null, 2), 'utf-8').toString('base64');\n\nreturn [{ json: { sha, content, message: `chore: mark ${postedIds.size} post(s) as posted (n8n)` } }];"
       },
-      "id": "a1b2c3d4-0000-4000-8000-000000000009",
+      "id": "b1000000-0000-4000-8000-000000000009",
       "name": "Build Updated Queue",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [840, 200]
+      "position": [840, 60]
     },
     {
       "parameters": {
@@ -115,39 +94,320 @@
         "jsonBody": "={{ { \"message\": $json.message, \"content\": $json.content, \"sha\": $json.sha } }}",
         "options": {}
       },
-      "id": "a1b2c3d4-0000-4000-8000-000000000008",
+      "id": "b1000000-0000-4000-8000-000000000008",
       "name": "Mark Posted (GitHub commit)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1060, 200],
+      "position": [1060, 60],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "sha/content/message all come straight from \"Build Updated Queue\" — nothing left to assemble by hand. Safe to retry: this write is idempotent (same sha + same content), and X already has the post regardless of whether this commit succeeds on the first try.",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "PLACEHOLDER_CREDENTIAL_ID",
-          "name": "GitHub Contents Token"
-        }
-      }
+      "notes": "Safe to retry: idempotent write, and X already has the post regardless of whether this commit succeeds first try.",
+      "credentials": { "httpHeaderAuth": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "GitHub Contents Token" } }
+    },
+
+    { "parameters": { "content": "### Flow B — Auto-reply to mentions\nFully autonomous, per your call: no review step. Reads/writes data/x-automation-state.json for its since_id cursor + a read-only log the Command Deck displays.", "height": 140, "width": 320 }, "id": "b1000000-0000-4000-8000-000000000091", "name": "Flow B Label", "type": "n8n-nodes-base.stickyNote", "typeVersion": 1, "position": [-40, 320] },
+    {
+      "parameters": { "rule": { "interval": [{ "field": "minutes", "minutesInterval": 30 }] } },
+      "id": "b1000000-0000-4000-8000-000000000010",
+      "name": "Schedule - Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-40, 480]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "1", "name": "userId", "type": "string", "value": "PASTE_YOUR_NUMERIC_X_USER_ID" },
+            { "id": "2", "name": "username", "type": "string", "value": "your_x_handle" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000011",
+      "name": "Set - Your X Account (Replies)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [180, 480],
+      "notes": "Fill in once. Numeric user ID (not your @handle) — X's mentions endpoint needs it."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.github.com/repos/alexanderafolabi1-afk/aetherforge-content/contents/data/x-automation-state.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000012",
+      "name": "Fetch Automation State (GitHub)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, 480],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput",
+      "notes": "continueOnFail is intentional: this file doesn't exist until the first successful run, and a 404 here must not kill the workflow. The Code node downstream treats a missing/errored response as \"no prior state\".",
+      "credentials": { "httpHeaderAuth": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "GitHub Contents Token" } }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Pulls just the since_id cursor out of the fetched state file, tolerating\n// a missing file (first-ever run) or a malformed one — either way this\n// resolves to null rather than throwing, so \"Get Mentions\" can safely\n// build its URL without a since_id clause.\nconst stateFetch = $input.first().json;\nlet sinceMentionId = null;\nif (stateFetch && stateFetch.content) {\n  try {\n    const decoded = JSON.parse(Buffer.from(stateFetch.content, 'base64').toString('utf-8'));\n    sinceMentionId = decoded.sinceMentionId || null;\n  } catch {\n    sinceMentionId = null;\n  }\n}\nreturn [{ json: { sinceMentionId } }];"
+      },
+      "id": "b1000000-0000-4000-8000-000000000019",
+      "name": "Decode Automation State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [620, 480]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.twitter.com/2/users/{{ $('Set - Your X Account (Replies)').first().json.userId }}/mentions?max_results=10&tweet.fields=author_id,created_at&expansions=author_id&user.fields=username{{ $json.sinceMentionId ? ('&since_id=' + $json.sinceMentionId) : '' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twitterOAuth1Api",
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000013",
+      "name": "Get Mentions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [840, 480],
+      "notes": "READ call — costs money under X pay-as-you-go once past Free-tier limits. since_id (from \"Decode Automation State\") keeps every poll fetching only new mentions, never re-billing for ones already seen. The since_id clause is only appended to the URL when a cursor actually exists, so the very first run (no prior state) never sends an empty/invalid since_id that X could reject.",
+      "credentials": { "twitterOAuth1Api": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "X OAuth1 API" } }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Flattens the mentions response into one item per new mention, attaching\n// the author's @handle. An empty/missing `data` array (nothing new since\n// since_id) returns [] — every node downstream is per-item and simply\n// won't execute this run, so nothing gets committed for a no-op poll.\nconst res = $input.first().json;\nconst mentions = res.data || [];\nif (mentions.length === 0) return [];\n\nconst users = (res.includes && res.includes.users) || [];\nconst usernameById = new Map(users.map((u) => [u.id, u.username]));\n\nreturn mentions.map((m) => ({\n  json: {\n    mentionId: m.id,\n    mentionText: m.text,\n    mentionAuthor: usernameById.get(m.author_id) || 'there',\n  },\n}));"
+      },
+      "id": "b1000000-0000-4000-8000-000000000014",
+      "name": "Flatten New Mentions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1060, 480]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Small on-brand template bank — no LLM node, so no extra API cost or\n// unreviewed AI text. Edit these lines any time to change tone; they're\n// the only thing that decides what gets auto-posted.\nconst templates = [\n  \"Noted, @{name}. Building beats talking about building.\",\n  \"@{name} — logged. Back to the work.\",\n  \"Appreciate the signal, @{name}. Onward.\",\n  \"@{name} — heard. No detours today.\",\n  \"Real one, @{name}. Keep showing up.\",\n];\nconst author = $json.mentionAuthor;\nconst text = templates[Math.floor(Math.random() * templates.length)].replace('{name}', author);\nreturn { json: { ...$json, replyText: text } };"
+      },
+      "id": "b1000000-0000-4000-8000-000000000015",
+      "name": "Build Reply Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1280, 480]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.twitter.com/2/tweets",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twitterOAuth1Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"text\": $json.replyText, \"reply\": { \"in_reply_to_tweet_id\": $json.mentionId } } }}",
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000016",
+      "name": "Post Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1500, 480],
+      "notes": "No retryOnFail, same double-post reasoning as Post Tweet in Flow A. This is the fully-autonomous send — nothing reviews this text before it goes out.",
+      "credentials": { "twitterOAuth1Api": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "X OAuth1 API" } }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Merges this run's replies into the persisted log + advances the since_id\n// cursor. Reads sha/prior state straight from \"Fetch Automation State\" and\n// this run's drafts/results by node name, the same pattern Flow A uses —\n// no reliance on HTTP Request nodes preserving upstream fields in .json.\nconst drafts = $('Build Reply Text').all();\nif (drafts.length === 0) return [];\n\nconst posted = $('Post Reply').all();\nconst stateFetch = $('Fetch Automation State (GitHub)').first().json;\n\nlet sha;\nlet existingLog = [];\nlet sinceMentionId = null;\nif (stateFetch && stateFetch.content) {\n  sha = stateFetch.sha;\n  const decoded = JSON.parse(Buffer.from(stateFetch.content, 'base64').toString('utf-8'));\n  existingLog = decoded.replyLog || [];\n  sinceMentionId = decoded.sinceMentionId || null;\n}\n\nconst newEntries = drafts.map((d, i) => ({\n  mentionId: d.json.mentionId,\n  mentionAuthor: d.json.mentionAuthor,\n  mentionText: d.json.mentionText,\n  replyText: d.json.replyText,\n  replyTweetId: (posted[i] && posted[i].json.data && posted[i].json.data.id) || '',\n  repliedAt: new Date().toISOString(),\n}));\n\n// Cap at 200 entries so the file doesn't grow unbounded — plenty for the\n// Command Deck's Replies tab, which only ever shows the most recent 20.\nconst mergedLog = [...newEntries, ...existingLog].slice(0, 200);\n\n// X's snowflake IDs are numeric strings where a larger value is always\n// newer — compare as BigInt so this doesn't break on IDs too large for\n// a JS Number.\nconst maxId = drafts.reduce((max, d) => {\n  const id = d.json.mentionId;\n  return !max || BigInt(id) > BigInt(max) ? id : max;\n}, sinceMentionId);\n\nconst payload = { sinceMentionId: maxId, replyLog: mergedLog };\nconst content = Buffer.from(JSON.stringify(payload, null, 2), 'utf-8').toString('base64');\n\nreturn [{ json: { sha, content, message: `chore: log ${newEntries.length} auto-repl${newEntries.length === 1 ? 'y' : 'ies'} (n8n)` } }];"
+      },
+      "id": "b1000000-0000-4000-8000-000000000017",
+      "name": "Build Updated Automation State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1720, 480]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "https://api.github.com/repos/alexanderafolabi1-afk/aetherforge-content/contents/data/x-automation-state.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"message\": $json.message, \"content\": $json.content, \"sha\": $json.sha } }}",
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000018",
+      "name": "Commit Automation State (GitHub)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1940, 480],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "sha is omitted (undefined) on the very first-ever run since the file doesn't exist yet — the GitHub Contents API creates it instead of updating.",
+      "credentials": { "httpHeaderAuth": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "GitHub Contents Token" } }
+    },
+
+    { "parameters": { "content": "### Flow C — Daily metrics sync\nOnce a day (deliberately not more often — this is 2 more billed reads under pay-as-you-go). Writes data/live-metrics.json, which the Command Deck reads read-only.", "height": 140, "width": 320 }, "id": "b1000000-0000-4000-8000-000000000092", "name": "Flow C Label", "type": "n8n-nodes-base.stickyNote", "typeVersion": 1, "position": [-40, 760] },
+    {
+      "parameters": { "rule": { "interval": [{ "field": "hours", "hoursInterval": 24, "triggerAtHour": 8 }] } },
+      "id": "b1000000-0000-4000-8000-000000000020",
+      "name": "Schedule - Daily 8am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-40, 920]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "1", "name": "username", "type": "string", "value": "your_x_handle" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000021",
+      "name": "Set - Your X Account (Metrics)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [180, 920],
+      "notes": "Fill in once — just your @handle, no @ symbol."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.twitter.com/2/users/by/username/{{ $json.username }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twitterOAuth1Api",
+        "sendQuery": true,
+        "queryParameters": { "parameters": [{ "name": "user.fields", "value": "public_metrics" }] },
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000022",
+      "name": "Get User",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, 920],
+      "notes": "READ call, billed under pay-as-you-go past Free-tier limits — this is why the whole flow runs once/day rather than more often.",
+      "credentials": { "twitterOAuth1Api": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "X OAuth1 API" } }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.twitter.com/2/users/{{ $json.data.id }}/tweets",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twitterOAuth1Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "max_results", "value": "20" },
+            { "name": "tweet.fields", "value": "public_metrics,created_at" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000023",
+      "name": "Get Recent Tweets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [620, 920],
+      "notes": "Second READ call of this daily run. public_metrics (likes/retweets/replies/quotes) is included at every X API access level; impression_count needs a higher access level and may be absent — the Code node downstream degrades gracefully (treats it as 0) rather than erroring if so.",
+      "credentials": { "twitterOAuth1Api": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "X OAuth1 API" } }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Shapes real X data into exactly the LiveMetricsFile shape the Command\n// Deck expects (src/lib/types.ts). Revenue is deliberately left at 0 here —\n// X's API doesn't expose ad revenue or tips at any access level, so that\n// stays hand-logged in Mission Log, same as before this automation existed.\nconst user = $('Get User').first().json.data;\nconst tweets = $input.first().json.data || [];\n\nconst posts = tweets.map((t) => {\n  const m = t.public_metrics || {};\n  const impressions = m.impression_count || 0;\n  const engagementCount = (m.like_count || 0) + (m.retweet_count || 0) + (m.reply_count || 0) + (m.quote_count || 0);\n  const engagement = impressions > 0 ? (engagementCount / impressions) * 100 : 0;\n  return {\n    id: t.id,\n    title: t.text.length > 80 ? t.text.slice(0, 77) + '...' : t.text,\n    vertical: 'Threads',\n    impressions,\n    engagement: Math.round(engagement * 10) / 10,\n    revenue: 0,\n    postedAt: t.created_at,\n  };\n});\n\nconst now = Date.now();\nconst weekAgo = now - 7 * 24 * 60 * 60 * 1000;\nconst dayAgo = now - 24 * 60 * 60 * 1000;\nconst postedThisWeek = posts.filter((p) => new Date(p.postedAt).getTime() >= weekAgo);\nconst impressions24h = posts\n  .filter((p) => new Date(p.postedAt).getTime() >= dayAgo)\n  .reduce((sum, p) => sum + p.impressions, 0);\nconst impressions7d = postedThisWeek.reduce((sum, p) => sum + p.impressions, 0);\nconst avgEngagement = posts.length\n  ? posts.reduce((sum, p) => sum + p.engagement, 0) / posts.length\n  : 0;\n\nconst stats = {\n  followers: (user.public_metrics && user.public_metrics.followers_count) || 0,\n  impressions24h,\n  impressions7d,\n  engagement: Math.round(avgEngagement * 10) / 10,\n  // Not available from the X API at any tier — stays hand-logged.\n  revenueX: 0,\n  revenueTips: 0,\n  revenueOther: 0,\n  postsWeek: postedThisWeek.length,\n  sparkline: posts\n    .slice()\n    .reverse()\n    .map((p) => p.impressions),\n};\n\nconst payload = { updatedAt: new Date().toISOString(), stats, posts };\nreturn [{ json: payload }];"
+      },
+      "id": "b1000000-0000-4000-8000-000000000024",
+      "name": "Build Live Metrics Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [840, 920]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.github.com/repos/alexanderafolabi1-afk/aetherforge-content/contents/data/live-metrics.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000025",
+      "name": "Fetch Existing Live Metrics (for sha)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1060, 920],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput",
+      "notes": "continueOnFail intentional: doesn't exist on the very first run. Only used to grab `sha` for the update below.",
+      "credentials": { "httpHeaderAuth": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "GitHub Contents Token" } }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const payload = $('Build Live Metrics Payload').first().json;\nconst existing = $input.first().json;\nconst sha = existing && existing.sha ? existing.sha : undefined;\nconst content = Buffer.from(JSON.stringify(payload, null, 2), 'utf-8').toString('base64');\nreturn [{ json: { sha, content, message: `chore: sync live metrics (${payload.updatedAt})` } }];"
+      },
+      "id": "b1000000-0000-4000-8000-000000000026",
+      "name": "Build Commit Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1280, 920]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "https://api.github.com/repos/alexanderafolabi1-afk/aetherforge-content/contents/data/live-metrics.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"message\": $json.message, \"content\": $json.content, \"sha\": $json.sha } }}",
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000027",
+      "name": "Commit Live Metrics (GitHub)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1500, 920],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": { "httpHeaderAuth": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "GitHub Contents Token" } }
     }
   ],
   "connections": {
-    "Schedule - Every 15 Minutes": {
-      "main": [[{ "node": "Fetch Content Queue (GitHub)", "type": "main", "index": 0 }]]
-    },
-    "Fetch Content Queue (GitHub)": {
-      "main": [[{ "node": "Decode & Filter Due Posts", "type": "main", "index": 0 }]]
-    },
-    "Decode & Filter Due Posts": {
-      "main": [[{ "node": "Post to X via OpenTweet", "type": "main", "index": 0 }]]
-    },
-    "Post to X via OpenTweet": {
-      "main": [[{ "node": "Build Updated Queue", "type": "main", "index": 0 }]]
-    },
-    "Build Updated Queue": {
-      "main": [[{ "node": "Mark Posted (GitHub commit)", "type": "main", "index": 0 }]]
-    }
+    "Schedule - Every 15 Minutes": { "main": [[{ "node": "Fetch Content Queue (GitHub)", "type": "main", "index": 0 }]] },
+    "Fetch Content Queue (GitHub)": { "main": [[{ "node": "Decode & Filter Due Posts", "type": "main", "index": 0 }]] },
+    "Decode & Filter Due Posts": { "main": [[{ "node": "Post Tweet", "type": "main", "index": 0 }]] },
+    "Post Tweet": { "main": [[{ "node": "Build Updated Queue", "type": "main", "index": 0 }]] },
+    "Build Updated Queue": { "main": [[{ "node": "Mark Posted (GitHub commit)", "type": "main", "index": 0 }]] },
+
+    "Schedule - Every 30 Minutes": { "main": [[{ "node": "Set - Your X Account (Replies)", "type": "main", "index": 0 }]] },
+    "Set - Your X Account (Replies)": { "main": [[{ "node": "Fetch Automation State (GitHub)", "type": "main", "index": 0 }]] },
+    "Fetch Automation State (GitHub)": { "main": [[{ "node": "Decode Automation State", "type": "main", "index": 0 }]] },
+    "Decode Automation State": { "main": [[{ "node": "Get Mentions", "type": "main", "index": 0 }]] },
+    "Get Mentions": { "main": [[{ "node": "Flatten New Mentions", "type": "main", "index": 0 }]] },
+    "Flatten New Mentions": { "main": [[{ "node": "Build Reply Text", "type": "main", "index": 0 }]] },
+    "Build Reply Text": { "main": [[{ "node": "Post Reply", "type": "main", "index": 0 }]] },
+    "Post Reply": { "main": [[{ "node": "Build Updated Automation State", "type": "main", "index": 0 }]] },
+    "Build Updated Automation State": { "main": [[{ "node": "Commit Automation State (GitHub)", "type": "main", "index": 0 }]] },
+
+    "Schedule - Daily 8am": { "main": [[{ "node": "Set - Your X Account (Metrics)", "type": "main", "index": 0 }]] },
+    "Set - Your X Account (Metrics)": { "main": [[{ "node": "Get User", "type": "main", "index": 0 }]] },
+    "Get User": { "main": [[{ "node": "Get Recent Tweets", "type": "main", "index": 0 }]] },
+    "Get Recent Tweets": { "main": [[{ "node": "Build Live Metrics Payload", "type": "main", "index": 0 }]] },
+    "Build Live Metrics Payload": { "main": [[{ "node": "Fetch Existing Live Metrics (for sha)", "type": "main", "index": 0 }]] },
+    "Fetch Existing Live Metrics (for sha)": { "main": [[{ "node": "Build Commit Body", "type": "main", "index": 0 }]] },
+    "Build Commit Body": { "main": [[{ "node": "Commit Live Metrics (GitHub)", "type": "main", "index": 0 }]] }
   },
   "active": false,
   "settings": {

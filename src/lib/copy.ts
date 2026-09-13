@@ -60,6 +60,6 @@ export function pickDailyLine(key: string, lines: readonly string[]) {
 }
 
 export const CONNECTOR_BRIEF = {
-  headline: "Flying on simulated telemetry",
-  body: "These numbers live in this browser until you wire a live source. Log real hauls by hand, or plug X / Sheets into the connectors map when you're ready to go live.",
+  headline: "Live telemetry from X, via n8n",
+  body: "Followers, impressions, engagement, and top posts sync in read-only from data/live-metrics.json — n8n writes it, this deck just displays it. Revenue and notes stay hand-logged (X has no API for those). See AUTOMATION_GUIDE.md for the n8n side.",
 };

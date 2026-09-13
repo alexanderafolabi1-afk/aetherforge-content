@@ -1,137 +1,179 @@
-# Automation Guide: Content Queue → X (via OpenTweet)
+# Automation Guide: the X Automation Engine
 
-This guide connects the Command Deck's **Launch queue** (the content schedule you stage in the app) to an external posting service, using [n8n](https://n8n.io) and [`n8n-workflow-template.json`](./n8n-workflow-template.json). There is no manual file export/upload step anymore — the app commits directly to this repo.
+This guide covers **all three** automated flows that run in
+[`n8n-workflow-template.json`](./n8n-workflow-template.json) against the real X (Twitter) API —
+posting the Launch queue, auto-replying to mentions, and syncing live metrics back into the
+Command Deck. There is no manual file export/upload anywhere in this loop; the app and n8n commit
+directly to this repo, and the app reads what n8n commits straight back.
 
-## How data flows today
+## The three flows, at a glance
 
-The Command Deck is a **local-first PWA**: everything you queue is stored in your browser's `localStorage` under the key `aetherforge-command-deck` (see `src/lib/store.ts`). To hand posts to an external automation, that data needs to exist somewhere n8n can read it — this repo, at `data/content-queue.json`.
-
-**GitHub Sync** (in the **Connectors** dialog) closes that gap directly: once configured, the Command Deck commits the queue straight to `data/content-queue.json` in this repo via the GitHub Contents API — no download, no manual upload, no copy-pasting.
+| Flow | Trigger | Reads | Writes | Cost |
+| --- | --- | --- | --- | --- |
+| **A — Post the queue** | Every 15 min | `data/content-queue.json` | `data/content-queue.json`, X (new tweet) | Posting is free at every X API tier |
+| **B — Auto-reply to mentions** | Every 30 min | `data/x-automation-state.json`, X mentions | `data/x-automation-state.json`, X (reply tweet) | Reading mentions is billed under pay-as-you-go past Free-tier limits |
+| **C — Daily metrics sync** | Once/day, 8am | X user + recent tweets | `data/live-metrics.json` | 2 read calls/day, same billing note as above |
 
 ```
-Command Deck (browser)  --[GitHub Contents API, direct commit]-->  data/content-queue.json
-                                                                            |
-                                                                    [n8n, every 15 min]
-                                                                            v
-                                                                    Post due items to X
-                                                                            |
-                                                                    [commit status back]
-                                                                            v
-                                                                    data/content-queue.json
+Command Deck (browser)  --[GitHub Sync, direct commit]-->  data/content-queue.json
+                                                                    |
+                                                            [n8n Flow A, every 15 min]
+                                                                    v
+                                                            Post due items to X
+                                                                    |
+                                                            [commit status back]
+                                                                    v
+                                                            data/content-queue.json
+
+X mentions  --[n8n Flow B, every 30 min]-->  reply, then commit  -->  data/x-automation-state.json
+                                                                              |
+X user + recent tweets  --[n8n Flow C, daily]-->  commit  -->  data/live-metrics.json
+                                                                              |
+                                                                    [raw GitHub fetch, read-only]
+                                                                              v
+                                                                       Command Deck (browser)
 ```
 
-Each item matches the `ScheduledPost` shape from `src/lib/types.ts`:
+**Reply flow is fully autonomous, by explicit request — there is no review-before-send step.**
+It replies immediately using a small on-brand template bank (no LLM node, so no added API cost or
+unreviewed AI-generated text). Everything it sends is logged read-only in the Command Deck's
+**Mission Log → Replies** tab so you can audit after the fact. If you'd rather review drafts before
+they go out, see [Switching the reply flow to review-before-send](#switching-the-reply-flow-to-review-before-send)
+below.
 
-```json
-{
-  "id": "queue-1",
-  "title": "The algorithm rewards frequency...",
-  "body": "Optional dispatch notes, supports **bold**, *italic*, `code`, [links](url).",
-  "vertical": "Threads",
-  "language": "en",
-  "scheduledFor": "2026-09-14T09:00:00.000Z",
-  "status": "queued",
-  "createdAt": "2026-09-12T00:00:00.000Z"
-}
-```
+## Cost control — read this before activating Flows B and C
 
-`status` is one of `"queued" | "posted" | "skipped"`. The automation only ever touches `"queued"` items whose `scheduledFor` has passed.
+Posting tweets (Flow A, and the reply half of Flow B) is free at every X API access tier. **Reading**
+mentions (Flow B) and user/tweet metrics (Flow C) is not — past Free-tier limits, X bills read
+calls under its pay-as-you-go pricing. Both read flows are deliberately conservative about this:
+
+- Flow B polls every 30 minutes and uses `since_id` so it only ever fetches mentions it hasn't
+  already seen — never re-billed for the same mention twice.
+- Flow C runs once a day, not more often, and makes exactly 2 read calls per run.
+
+**The real backstop is a hard spending cap in your X developer billing settings** — set one before
+leaving these active for any real stretch of time. n8n has no way to enforce a spend limit on X's
+side; only X's own cap can guarantee you never pay more than you intend to.
 
 ## Setup (one time)
 
-### 1. Create a GitHub token — read this before anything else
+### 1. Create your X (Twitter) API credential
 
-GitHub Sync needs a token that can write to this repo, and it lives in your browser's `localStorage`. That is a real credential, not a screen-lock hash — treat it with real care:
+1. developer.x.com → your app → **Keys and Tokens**
+2. Under **Authentication Tokens**, make sure the app's permission is **Read and Write** (not
+   Read-only — both posting and replying need write access)
+3. Copy the **API Key**, **API Key Secret**, **Access Token**, and **Access Token Secret**
+4. In n8n → Credentials → New → search **"Twitter"** → pick the **OAuth1** credential type → paste
+   the four values in → Save, name it `X OAuth1 API`
 
-- Create a **fine-grained personal access token**: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
-- Scope it to **this one repository only** (`aetherforge-content`, or your fork) — never "all repositories"
-- Grant only **Contents: Read and write** — nothing else
-- Set a reasonable expiry and rotate it periodically
+This one credential covers every X node in all three flows.
 
-Never paste a classic PAT or one with account-wide scope here. Anyone with access to this browser or its devtools can read it.
+### 2. Create a GitHub token for n8n
 
-### 2. Configure GitHub Sync in the app
+Same kind of token GitHub Sync uses in the app, but a separate one for n8n (or reuse the same PAT
+— either is fine):
 
-Open **Connectors** in the Command Deck → **GitHub Sync** → fill in:
+- **Fine-grained personal access token**, scoped to **this one repository only**
+- **Contents: Read and write**, nothing else
+- In n8n → Credentials → New → **Header Auth** → Name: `Authorization`, Value: `Bearer <your PAT>`
+  → Save, name it `GitHub Contents Token`
 
-| Field | Value |
-| --- | --- |
-| Owner | `alexanderafolabi1-afk` (or your fork's owner) |
-| Repo | `aetherforge-content` |
-| Branch | `main` |
-| Path | `data/content-queue.json` |
-| Token | the fine-grained PAT from step 1 |
+### 3. Import the workflow and fill in the two Set nodes
 
-Click **Save** (PIN-confirmed, same as every restricted action here). From this point on, every change to the Launch queue — adding a post, marking one posted, skipping, removing — auto-commits to GitHub a couple of seconds later. There's also a manual **Sync to GitHub** button in the Launch queue header for an on-demand push.
-
-The panel shows a live status line ("Synced to GitHub · 2:14 PM" or "Sync failed") so you always know whether the bridge is actually working — it isn't a silent fire-and-forget.
-
-**Before relying on it, click Verify connection** (next to Save/Clear). It performs a real read *and* write test — reading the repo, reading the configured queue path, then writing to a small dedicated marker file (`.aetherforge-sync-check.json`, next to the queue path) so the check can never touch or corrupt your real queue data. It reports token/repo/path/write status individually, so a failure tells you exactly which part is wrong. Prefer to check a token before it ever touches the browser? `npm run verify-github-token` (with `GITHUB_TOKEN=...` set) runs the identical check from the command line.
-
-### 3. Import the n8n workflow
-
-1. Open your n8n instance → **Workflows → Import from File**
-2. Select [`n8n-workflow-template.json`](./n8n-workflow-template.json)
-3. Add two credentials (n8n → Credentials → New):
-   - **GitHub Contents Token** — the same kind of fine-grained PAT as above (a separate token is fine, or reuse the one from step 1)
-   - **OpenTweet API Key** — whatever OpenTweet's docs specify (bearer token, header key, etc.)
-4. Assign each credential to the matching HTTP Request nodes (they're pre-named to make this obvious)
-5. The Fetch / Mark Posted node URLs already point at this exact repo — only edit them if you're running this against a fork
-
-The template ships fully wired, not a skeleton:
-- **Schedule Trigger** (every 15 minutes) — n8n's own "Execute workflow" button covers manual testing, so there's no separate webhook trigger to configure
-- **Fetch Content Queue (GitHub)** — one GET that returns both the file content and its `sha`. Auto-retries 3x on transient failures (rate limits, blips) — this call is read-only, so retrying is always safe.
-- **Decode & Filter Due Posts** (Code node) — decodes the file, keeps only `queued` items whose `scheduledFor` has passed
-- **Post to X via OpenTweet** — the one placeholder left: OpenTweet's real endpoint/auth isn't something this guide can verify, so update the URL and auth against their actual docs before activating. Deliberately does **not** auto-retry: retrying a create-tweet call on a lost response could double-post to X, so a genuine failure here just waits for the next scheduled run instead.
-- **Build Updated Queue** (Code node) — merges `status: "posted"` back into the full queue and base64-encodes it; if nothing was due, it outputs nothing and skips the commit entirely
-- **Mark Posted (GitHub commit)** — writes the result back, using the real `sha`/`content`/`message` from the previous node. Also auto-retries 3x — this write is idempotent, and X already has the post regardless of whether the commit lands on the first try.
-
-No Code node is left as an exercise — both are implemented and tested (see the repo's own verification in the commit that introduced this template). No manual intervention is needed for a normal run: the only human steps are the one-time credential setup above and confirming OpenTweet's real endpoint.
+1. n8n → **Workflows → Import from File** → select
+   [`n8n-workflow-template.json`](./n8n-workflow-template.json)
+2. Assign `X OAuth1 API` and `GitHub Contents Token` to their matching nodes (pre-named to make
+   this obvious)
+3. Open **Set - Your X Account (Replies)** and **Set - Your X Account (Metrics)** — fill in your
+   numeric X user ID and handle. Find your numeric ID once via a site like tweeterid.com, or by
+   calling `GET https://api.twitter.com/2/users/by/username/<handle>` yourself with the same
+   credential in any REST client.
+4. Click **Test step** on each node once, top to bottom in each flow, before activating — confirms
+   every credential and field actually works.
 
 ### 4. Test before activating
 
-- **Execute workflow** in n8n with at least one `queued` item scheduled in the past (stage one from the Command Deck, or hand-edit `data/content-queue.json` for a dry run)
-- Confirm it posts to OpenTweet (or a mock endpoint first) and commits `status: "posted"` back
-- Only then toggle the workflow **Active**
+- Stage one post in the Launch queue with a `scheduledFor` in the past, run Flow A's **Execute
+  workflow**, confirm it posts and marks the item `posted`.
+- Run Flow C's **Execute workflow** once and confirm `data/live-metrics.json` appears in the repo
+  with real numbers — the Command Deck picks it up on its next load or a tap of the header Refresh
+  button.
+- Only reply-test Flow B against an account you don't mind test-replying from — remember, there's
+  no review step. Toggle the whole workflow **Active** once you're confident in all three.
 
-## Daily use
+## How the Command Deck reads this back
 
-Once both sides are set up, this is the entire loop:
+`src/lib/live-sync.ts` fetches `data/live-metrics.json` and `data/x-automation-state.json` straight
+from `raw.githubusercontent.com` — a plain public read, no token, no GitHub API rate limit shared
+with your write traffic. This happens automatically on app load and whenever you tap the header
+Refresh button (`src/components/deck/command-bar.tsx`). `useDeckStore.getState().syncLiveData()` is
+the entry point if you want to trigger it from anywhere else in the code.
 
-1. **Check what's next.** The **Next up** card on the main screen shows the earliest queued item's language and publish time at a glance.
-2. **Stage or adjust posts** in the **Launch queue** panel — headline, dispatch, vertical, language, fire time. Use the **Preview** tab to markdown-check each language variant.
-3. That's it. The queue auto-syncs to GitHub a couple of seconds after any change (watch the status line), and n8n picks up anything due on its next 15-minute run.
-4. **Reconcile in-app status.** n8n commits `status: "posted"` back to `data/content-queue.json`, but the Command Deck still reads its own `localStorage` — it doesn't pull that file back down automatically. Mark the same items posted with the ✓ button in the Launch queue panel once you've confirmed they went out, so the in-app view matches reality.
-5. **Verify with the telemetry check script** (optional, `npm run check-queue` — see below) any time you want a repo-side health check independent of the app's own status line.
+`data/live-metrics.json` shape (`LiveMetricsFile` in `src/lib/types.ts`):
 
-There's no export/upload step left to remember — steps 1–3 are the only ones that repeat daily, and step 3 requires no action beyond the edit itself.
-
-### Verifying with the telemetry check script
-
-Run `npm run check-queue` (or `node scripts/check-queue-telemetry.mjs`) against your local checkout of this repo (after pulling the latest commit GitHub Sync or n8n made). It validates `data/content-queue.json` against the exact shape the n8n workflow expects, and flags any `queued` item whose `scheduledFor` has already passed — the clearest sign the n8n side has stalled:
-
+```json
+{
+  "updatedAt": "2026-09-14T08:00:00.000Z",
+  "stats": {
+    "followers": 4820,
+    "impressions24h": 12400,
+    "impressions7d": 68900,
+    "engagement": 4.2,
+    "revenueX": 0,
+    "revenueTips": 0,
+    "revenueOther": 0,
+    "postsWeek": 6,
+    "sparkline": [1200, 1800, 900, ...]
+  },
+  "posts": [
+    { "id": "...", "title": "...", "vertical": "Threads", "impressions": 1800, "engagement": 5.1, "revenue": 0, "postedAt": "..." }
+  ]
+}
 ```
-$ npm run check-queue
 
-Checked 4 item(s) in data/content-queue.json
-  queued=3 posted=1 skipped=0
-  languages: {"en":1,"es":1,"ja":1,"pt":1}
-  next up: "The algorithm rewards frequency..." (en) at 2026-09-14T09:00:00.000Z
-✔ Queue looks healthy — no shape issues, nothing overdue.
-Status written to data/automation-status.json
-Log appended to data/automation-status.log
+Revenue fields always stay `0` from the live sync — **X's API doesn't expose ad revenue or tips at
+any access level.** Log those by hand in Mission Log → Haul, same as before this automation
+existed; the live sync will never overwrite what you hand-log there.
+
+`data/x-automation-state.json` shape (`XAutomationStateFile`):
+
+```json
+{
+  "sinceMentionId": "1950000000000000002",
+  "replyLog": [
+    {
+      "mentionId": "1950000000000000002",
+      "mentionAuthor": "alice",
+      "mentionText": "@you nice thread",
+      "replyText": "Noted, @alice. Building beats talking about building.",
+      "replyTweetId": "1950000000000000010",
+      "repliedAt": "2026-09-14T08:03:00.000Z"
+    }
+  ]
+}
 ```
 
-A non-zero exit code means either a shape problem or something overdue — treat it as "go check the n8n execution log," not an in-app problem. Its output files are gitignored by default; commit them yourself, or wire a scheduled job, if you want that history tracked.
+`sinceMentionId` is n8n's own pagination cursor — the PWA ignores it and only ever displays
+`replyLog`, most recent 20, in Mission Log → Replies.
+
+## Switching the reply flow to review-before-send
+
+Flow B was built fully autonomous on request. To add a review step instead: remove the connection
+from **Build Reply Text** straight to **Post Reply**, and instead have **Build Reply Text** write
+its drafts to a new `data/reply-drafts.json` file (same GitHub-commit pattern as the other two
+flows) rather than posting immediately. The Command Deck would then need a small new panel to list
+pending drafts with approve/edit/skip actions, similar to the existing Launch queue — that's a
+follow-up piece of work, not something this template does today.
 
 ## Reference
 
+- Live metrics fetch: `src/lib/live-sync.ts`, applied via `syncLiveData()` in `src/lib/store.ts`
+- Live data types: `src/lib/types.ts` (`LiveMetricsFile`, `XAutomationStateFile`, `ReplyLogEntry`)
+- Replies display: `src/components/deck/log-panel.tsx` (Mission Log → Replies tab, read-only)
 - Queue data model: `src/lib/types.ts` (`ScheduledPost`, `PostLanguage`)
 - Queue actions: `src/lib/store.ts` (`queuePost`, `markQueuePosted`, `skipQueuedPost`, `removeQueuedPost`, `nextQueuedPost`)
 - Queue UI: `src/components/deck/content-queue.tsx` (Launch queue panel, Queue/Preview tabs, Sync to GitHub)
-- GitHub Sync: `src/lib/github-sync.ts` (config storage, the direct commit flow, `verifyGithubSyncConnection`), settings UI in `src/components/deck/connectors.tsx`
+- GitHub Sync (browser → GitHub, for the queue): `src/lib/github-sync.ts`, settings UI in `src/components/deck/connectors.tsx`
 - Token pre-flight check: `scripts/verify-github-token.mjs` (`npm run verify-github-token`)
-- Next-up preview: `src/components/deck/upcoming-post.tsx`
-- Automation status toggle: `src/components/deck/command-bar.tsx` (`automationActive` / `toggleAutomation`) — manual flag, not a live n8n health check
-- Telemetry check script: `scripts/check-queue-telemetry.mjs` (`npm run check-queue`)
+- Telemetry check script: `scripts/check-queue-telemetry.mjs` (`npm run check-queue`) — validates `data/content-queue.json` shape and flags overdue items, independent of n8n
 - Workflow template: `n8n-workflow-template.json`

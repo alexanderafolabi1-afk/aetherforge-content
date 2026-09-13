@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Flame, Menu, RefreshCw, Satellite } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -11,7 +13,9 @@ export function CommandBar({ onToggleSidebar }: { onToggleSidebar: () => void })
   const checkIn = useDeckStore((s) => s.checkIn);
   const automationActive = useDeckStore((s) => s.automationActive);
   const toggleAutomation = useDeckStore((s) => s.toggleAutomation);
+  const syncLiveData = useDeckStore((s) => s.syncLiveData);
   const checked = streak.todayKey === todayKey();
+  const [syncing, setSyncing] = useState(false);
 
   return (
     <header className="safe-top sticky top-0 z-40 border-b border-border/80 bg-background/75 backdrop-blur-md">
@@ -40,10 +44,16 @@ export function CommandBar({ onToggleSidebar }: { onToggleSidebar: () => void })
           <Button
             size="icon"
             variant="outline"
-            aria-label="Refresh"
-            onClick={() => window.location.reload()}
+            aria-label="Refresh live metrics"
+            disabled={syncing}
+            onClick={async () => {
+              setSyncing(true);
+              await syncLiveData();
+              setSyncing(false);
+              toast("Pulled the latest from GitHub.");
+            }}
           >
-            <RefreshCw className="size-4" />
+            <RefreshCw className={cn("size-4", syncing && "animate-spin")} />
           </Button>
           <Tooltip>
             <TooltipTrigger asChild>
