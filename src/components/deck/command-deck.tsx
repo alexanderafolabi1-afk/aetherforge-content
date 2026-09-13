@@ -17,7 +17,7 @@ import { Starfield } from "./starfield";
 import { StatsGrid } from "./stats-grid";
 import { TopPosts } from "./top-posts";
 import { UpcomingPostCard } from "./upcoming-post";
-import { CONNECTOR_BRIEF } from "@/lib/copy";
+import { formatRelative } from "@/lib/format";
 import { useDeckStore } from "@/lib/store";
 
 export function CommandDeck({ onLogout }: { onLogout: () => void }) {
@@ -26,6 +26,7 @@ export function CommandDeck({ onLogout }: { onLogout: () => void }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const celebration = useDeckStore((s) => s.celebration);
   const dismiss = useDeckStore((s) => s.dismissCelebration);
+  const liveMetricsUpdatedAt = useDeckStore((s) => s.liveMetricsUpdatedAt);
 
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
   const [pinActionLabel, setPinActionLabel] = useState("");
@@ -51,6 +52,7 @@ export function CommandDeck({ onLogout }: { onLogout: () => void }) {
   useEffect(() => {
     void Promise.resolve(useDeckStore.persist.rehydrate()).then(() => {
       useDeckStore.getState().markHydrated();
+      void useDeckStore.getState().syncLiveData();
     });
   }, []);
 
@@ -77,8 +79,10 @@ export function CommandDeck({ onLogout }: { onLogout: () => void }) {
               <>
                 <Hero celebrating={Boolean(celebration)} />
                 <p className="px-1 text-[11px] leading-relaxed text-muted-foreground">
-                  {CONNECTOR_BRIEF.headline}. Log real hauls in Mission Log, or open Connectors
-                  when you are ready to dock live APIs.
+                  {liveMetricsUpdatedAt
+                    ? `Live from X via n8n · synced ${formatRelative(liveMetricsUpdatedAt)}.`
+                    : "Awaiting first live sync from n8n — see AUTOMATION_GUIDE.md to wire it up."}{" "}
+                  Revenue and notes still get hand-logged in Mission Log (X has no API for those).
                 </p>
                 <UpcomingPostCard />
                 <StatsGrid />

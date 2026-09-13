@@ -69,7 +69,12 @@ export function ConnectorsDialog({
             <li key={c.id} className="rounded-xl bg-secondary/50 p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-medium">{c.name}</p>
-                <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                <span
+                  className={cn(
+                    "text-[11px] uppercase tracking-wider",
+                    c.status === "live" ? "text-success" : "text-muted-foreground",
+                  )}
+                >
                   {c.status}
                 </span>
               </div>
@@ -276,8 +281,12 @@ export function ConnectorsDialog({
             onOpenChange(false);
           }}
         >
-          Restore demo orbit
+          Clear local cache
         </Button>
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          Wipes hand-logged hauls/notes and any locally-overridden telemetry in this browser back
+          to zero. Nothing on GitHub or X is touched — the next live sync repopulates real numbers.
+        </p>
       </DialogContent>
     </Dialog>
   );

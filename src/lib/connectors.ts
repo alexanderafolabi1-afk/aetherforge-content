@@ -1,33 +1,33 @@
 /**
- * Live telemetry connectors — swap placeholder stats for real feeds later.
+ * Live telemetry connectors.
  *
- * This deck stores everything in localStorage (`aetherforge-command-deck`).
- * When you're ready to fly live:
+ * This deck stores everything in localStorage (`aetherforge-command-deck`),
+ * with one live exception: X analytics. n8n (running on your own machine,
+ * holding your X API credentials — never this browser) fetches followers,
+ * impressions, engagement, and recent posts on a schedule and commits them
+ * to data/live-metrics.json in this repo. The PWA just reads that file —
+ * see live-sync.ts and AUTOMATION_GUIDE.md. Nothing else below is live yet:
  *
- * 1. X (Twitter)
- *    - Create an app at https://developer.x.com
- *    - Read user metrics + recent posts (impressions, engagements, followers)
- *    - Map into `Stats` + `Post[]` and call `useDeckStore.getState().patchStats(...)`
- *    - Suggested fields: public_metrics, organic_metrics, promoted_metrics
- *
- * 2. Google Sheets
+ * 1. Google Sheets
  *    - Keep a tab with date, followers, impressions, revenue columns
  *    - Publish as CSV or hit Sheets API from a tiny server function
  *    - Merge rows into sparkline + revenue logs
  *
- * 3. Stripe / Ko-fi / Tips
+ * 2. Stripe / Ko-fi / Tips
  *    - Webhook → append `addRevenue('tips' | 'other', amount, note)`
  *
- * 4. Do not put API secrets in the browser. Server routes belong in `src/routes/`.
+ * 3. Do not put API secrets in the browser. GitHub Sync (a narrowly-scoped
+ *    exception, see github-sync.ts) is the only credential this app itself
+ *    ever holds — X credentials live in n8n, not here.
  *
- * Until then, log hauls by hand from the Command Deck. The universe still counts.
+ * Until Sheets/tips are wired, log hauls by hand from the Command Deck.
  */
 export const CONNECTORS = [
   {
     id: "x",
     name: "X analytics",
-    status: "standby" as const,
-    hook: "Followers, impressions, engagement, post list",
+    status: "live" as const,
+    hook: "Followers, impressions, engagement, post list — synced from n8n",
   },
   {
     id: "sheets",

@@ -27,6 +27,7 @@ export function LogPanel({
   const notes = useDeckStore((s) => s.notes);
   const logs = useDeckStore((s) => s.revenueLogs);
   const stats = useDeckStore((s) => s.stats);
+  const replyLog = useDeckStore((s) => s.replyLog);
 
   const [amount, setAmount] = useState("");
   const [source, setSource] = useState<RevenueSource>("tips");
@@ -39,7 +40,10 @@ export function LogPanel({
     <Card className="h-full" id="log-panel">
       <CardHeader>
         <CardTitle>Mission log</CardTitle>
-        <CardDescription>Hand-fly the numbers until the APIs dock.</CardDescription>
+        <CardDescription>
+          Revenue and notes stay hand-logged (X doesn't expose that data); Telemetry now shows
+          what the live sync pulled in, and Replies is a record of what n8n auto-sent.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="haul">
@@ -47,6 +51,7 @@ export function LogPanel({
             <TabsTrigger value="haul">Haul</TabsTrigger>
             <TabsTrigger value="note">Note</TabsTrigger>
             <TabsTrigger value="telemetry">Telemetry</TabsTrigger>
+            <TabsTrigger value="replies">Replies</TabsTrigger>
           </TabsList>
 
           <TabsContent value="haul" className="grid gap-3">
@@ -157,7 +162,8 @@ export function LogPanel({
 
           <TabsContent value="telemetry" className="grid gap-3">
             <p className="text-xs text-muted-foreground">
-              Paste real numbers from X analytics. They persist in this browser until you wire a live connector.
+              Auto-filled by the live sync from n8n. Edit and commit here only to correct or
+              override a value locally — the next sync overwrites it with what's actually on X.
             </p>
             {(
               [
@@ -200,6 +206,36 @@ export function LogPanel({
             >
               Commit telemetry
             </Button>
+          </TabsContent>
+
+          <TabsContent value="replies" className="grid gap-3">
+            <p className="text-xs text-muted-foreground">
+              Posted automatically by n8n with no review step — this is a read-only record of what
+              went out, not a queue. See AUTOMATION_GUIDE.md to switch to review-before-send.
+            </p>
+            <ul className="space-y-2">
+              {replyLog.length === 0 ? (
+                <li className="text-sm text-muted-foreground">
+                  No auto-replies logged yet. They'll show up here once the n8n reply flow is active.
+                </li>
+              ) : (
+                [...replyLog]
+                  .sort((a, b) => Date.parse(b.repliedAt) - Date.parse(a.repliedAt))
+                  .slice(0, 20)
+                  .map((r) => (
+                    <li key={r.replyTweetId || r.mentionId} className="rounded-xl bg-secondary/50 p-3">
+                      <p className="text-xs text-muted-foreground">
+                        Replying to <span className="text-foreground">@{r.mentionAuthor}</span>:{" "}
+                        <span className="italic">"{r.mentionText}"</span>
+                      </p>
+                      <p className="mt-1.5 text-sm leading-relaxed">{r.replyText}</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {formatRelative(r.repliedAt)}
+                      </p>
+                    </li>
+                  ))
+              )}
+            </ul>
           </TabsContent>
         </Tabs>
       </CardContent>

@@ -20,7 +20,7 @@ This is the live **Command Deck** (the dashboard you open every day). Data lives
 | **Progress galaxy** | Six planets = content verticals (Threads, Visuals, Longform, Collabs, Livestreams, Experiments). |
 | **Top posts** | This week’s best transmissions. |
 | **Mission log** | Hand-log hauls, notes, and telemetry until X/Sheets/Stripe are connected. |
-| **Connectors** | Instructions for docking live APIs later. Nothing secret lives in the browser. |
+| **Connectors** | X analytics is live (n8n → GitHub → PWA, read-only). Sheets/tips are still manual. Nothing secret lives in the browser except a narrowly-scoped GitHub Sync token. |
 | **Executive Briefing** | A dedicated page with an automated morning summary: engagement velocity, follower growth pace, estimated revenue, and top-performing verticals — all derived from live store data. |
 | **Admin PIN lock** | Prompts for a PIN on first open (and every fresh app open after that), plus re-confirms it before restricted actions (GitHub Sync, telemetry commits). A local screen lock for a shared/borrowed device — not real account security. Reset it from Connectors, or use **Logout** in the sidebar to re-lock without wiping the PIN. |
 | **Sidebar navigation** | Five pages — Overview, Growth, Launch Queue, Mission Log, Briefing — behind a responsive sidebar (persistent on wide screens, a slide-out drawer via the header's menu button on mobile). |
@@ -54,7 +54,8 @@ aetherforge-content/
 │   │   ├── format.ts          47.8K / $4,280 helpers
 │   │   ├── connectors.ts      How to wire X / Sheets / tips later
 │   │   ├── pin.ts             Salted-hash PIN storage (no plaintext)
-│   │   └── github-sync.ts     Direct browser → GitHub Contents API commit
+│   │   ├── github-sync.ts     Direct browser → GitHub Contents API commit (the queue)
+│   │   └── live-sync.ts       Read-only pull of n8n's live-metrics.json + x-automation-state.json
 │   ├── components/ui/         Buttons, cards, dialogs (Radix)
 │   └── components/deck/       The actual observatory
 │       ├── command-deck.tsx   Layout + page routing (5 pages)
@@ -119,12 +120,14 @@ Until then: **Telemetry** tab + **Log haul** is the real workflow.
 
 ---
 
-## Automate posting
+## Automate posting, replying, and live metrics
 
-The **Launch queue** panel stages daily, multi-language posts (with a Queue/Preview tab to markdown-preview each one). **GitHub Sync** (Connectors → GitHub Sync) commits the queue straight to `data/content-queue.json` in this repo the moment it changes — no export, no manual upload. To actually fire posts to X on a schedule, see [`AUTOMATION_GUIDE.md`](./AUTOMATION_GUIDE.md) and import [`n8n-workflow-template.json`](./n8n-workflow-template.json) into n8n.
+The **Launch queue** panel stages daily, multi-language posts (with a Queue/Preview tab to markdown-preview each one). **GitHub Sync** (Connectors → GitHub Sync) commits the queue straight to `data/content-queue.json` in this repo the moment it changes — no export, no manual upload.
+
+[`n8n-workflow-template.json`](./n8n-workflow-template.json) runs three flows against the real X API: posting due queue items, fully-autonomous replies to mentions, and a daily live-metrics sync that the Command Deck reads straight back (Overview stats, Content highlights, Executive Briefing — all real once this is wired up, zero everywhere until it is). See [`AUTOMATION_GUIDE.md`](./AUTOMATION_GUIDE.md) for full setup, the data shapes involved, and — important if you're on X's pay-as-you-go pricing — cost control before activating.
 
 ---
 
 ## Reset
 
-Connectors → **Restore demo orbit** wipes local data back to the sample universe.
+Connectors → **Clear local cache** wipes hand-logged hauls/notes and any local telemetry overrides back to zero. It never touches GitHub or X — the next live sync repopulates real numbers.
