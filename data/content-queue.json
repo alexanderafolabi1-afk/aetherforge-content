@@ -10,33 +10,63 @@
     "createdAt": "2026-09-12T17:25:27.559Z"
   },
   {
-    "id": "queue-2",
-    "title": "Detrás del visor: así se ve un post de las 2am antes de publicarse.",
-    "body": "Imagen fija + leyenda corta. Deja que la *imagen* aterrice primero, la leyenda va en la respuesta.",
-    "vertical": "Visuals",
-    "language": "es",
-    "scheduledFor": "2026-09-14T08:00:00.000Z",
+    "id": "queue-5",
+    "title": "Confidence isn't loud. It's the quiet decision to stop asking for permission you never needed.",
+    "body": "",
+    "vertical": "Threads",
+    "language": "en",
+    "scheduledFor": "2026-09-13T22:15:00.000Z",
     "status": "queued",
-    "createdAt": "2026-09-12T17:25:27.559Z"
+    "createdAt": "2026-09-13T16:54:14.760Z"
   },
   {
-    "id": "queue-3",
-    "title": "長編：あなたのコンテンツは悪くない、軌道が違うだけだ。",
-    "body": "今週最も反応が良かったスレッドを**エッセイ形式**に拡張したもの。",
+    "id": "queue-6",
+    "title": "Everyone wants the following. Almost no one wants the thousand invisible mornings that build it.",
+    "body": "",
+    "vertical": "Threads",
+    "language": "en",
+    "scheduledFor": "2026-09-14T14:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-13T16:54:14.770Z"
+  },
+  {
+    "id": "queue-7",
+    "title": "The work that compounds is never the work that trends. Build the thing, not the moment.",
+    "body": "",
     "vertical": "Longform",
-    "language": "ja",
-    "scheduledFor": "2026-09-15T08:00:00.000Z",
+    "language": "en",
+    "scheduledFor": "2026-09-14T20:00:00.000Z",
     "status": "queued",
-    "createdAt": "2026-09-12T17:25:27.559Z"
+    "createdAt": "2026-09-13T16:54:14.770Z"
   },
   {
-    "id": "queue-4",
-    "title": "Colaboração com um viajante: dois poços de gravidade, uma trajetória.",
-    "body": "Cross-post coordenado para lançamento *simultâneo* às 9h em ambas as contas.",
-    "vertical": "Collabs",
-    "language": "pt",
-    "scheduledFor": "2026-09-16T08:00:00.000Z",
+    "id": "queue-8",
+    "title": "Taste is just judgment you've earned the hard way. Nobody skips the reps.",
+    "body": "",
+    "vertical": "Threads",
+    "language": "en",
+    "scheduledFor": "2026-09-15T14:00:00.000Z",
     "status": "queued",
-    "createdAt": "2026-09-12T17:25:27.559Z"
+    "createdAt": "2026-09-13T16:54:14.770Z"
+  },
+  {
+    "id": "queue-9",
+    "title": "You don't need a bigger platform. You need a sharper point of view and the nerve to hold it.",
+    "body": "",
+    "vertical": "Experiments",
+    "language": "en",
+    "scheduledFor": "2026-09-15T20:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-13T16:54:14.770Z"
+  },
+  {
+    "id": "queue-10",
+    "title": "The quiet ones building in silence right now are the loud ones you'll hear about in a year.",
+    "body": "",
+    "vertical": "Threads",
+    "language": "en",
+    "scheduledFor": "2026-09-16T14:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-13T16:54:14.770Z"
   }
 ]
