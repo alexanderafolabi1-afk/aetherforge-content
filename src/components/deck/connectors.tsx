@@ -59,7 +59,7 @@ export function ConnectorsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Connectors</DialogTitle>
           <DialogDescription>{CONNECTOR_BRIEF.body}</DialogDescription>
