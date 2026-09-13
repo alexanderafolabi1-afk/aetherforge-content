@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { pickDailyLine, CHECK_IN_LINES, MILESTONE_HITS, pickLine } from "./copy";
+import { fetchQueueFromGithub, hasGithubSyncConfig } from "./github-sync";
 import { fetchLiveMetrics, fetchXAutomationState } from "./live-sync";
 import { seedDeck } from "./seed";
 import type {
@@ -35,6 +36,14 @@ interface DeckStore extends DeckData {
   replyLog: ReplyLogEntry[];
   /** Pulls data/live-metrics.json and data/x-automation-state.json from GitHub and merges what's there into the deck. */
   syncLiveData: () => Promise<void>;
+  /**
+   * Overwrites local contentQueue with whatever's actually on GitHub, if
+   * GitHub Sync is configured. Must run before anything else can push —
+   * otherwise a stale persisted queue from this browser (an old device,
+   * before a deploy, before a manual cache clear) auto-syncs back up and
+   * clobbers real content that n8n or another session already committed.
+   */
+  pullQueueFromGithub: () => Promise<void>;
   markHydrated: () => void;
   setCommanderName: (name: string) => void;
   patchStats: (patch: Partial<Stats>) => void;
@@ -143,6 +152,11 @@ export const useDeckStore = create<DeckStore>()(
         if (automation) {
           set({ replyLog: automation.replyLog });
         }
+      },
+      pullQueueFromGithub: async () => {
+        if (!hasGithubSyncConfig()) return;
+        const remote = await fetchQueueFromGithub();
+        if (remote) set({ contentQueue: remote as ScheduledPost[] });
       },
       markHydrated: () => set({ hydrated: true }),
       setCommanderName: (commanderName) => set({ commanderName }),

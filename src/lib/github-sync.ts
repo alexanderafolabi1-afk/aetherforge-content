@@ -194,6 +194,35 @@ export async function verifyGithubSyncConnection(): Promise<VerifyResult> {
   };
 }
 
+/**
+ * Pulls the queue straight from GitHub. Call this on app load (before the
+ * auto-sync-on-change effect gets a chance to fire) — GitHub Sync used to be
+ * push-only, so a browser's stale local queue (from before a deploy, or from
+ * a different device) could silently overwrite real content committed by n8n
+ * or pushed from elsewhere. Starting every session from server truth closes
+ * that gap: only genuine new edits made *after* this pull are ever pushed.
+ */
+export async function fetchQueueFromGithub(): Promise<unknown[] | null> {
+  const config = getGithubSyncConfig();
+  if (!config) return null;
+  const { owner, repo, branch, path, token } = config;
+  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`;
+
+  try {
+    const res = await githubRequest(apiUrl, token);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { content?: string };
+    if (!data.content) return null;
+    const decoded = new TextDecoder().decode(
+      Uint8Array.from(atob(data.content.replace(/\n/g, "")), (c) => c.charCodeAt(0)),
+    );
+    const parsed = JSON.parse(decoded);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Commits `queue` to the configured repo/path, creating or updating the file as needed. */
 export async function syncQueueToGithub(queue: unknown): Promise<SyncResult> {
   const config = getGithubSyncConfig();
