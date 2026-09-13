@@ -1,0 +1,27 @@
+{
+  "updatedAt": "2026-09-13T16:44:37.555Z",
+  "stats": {
+    "followers": 5,
+    "impressions24h": 0,
+    "impressions7d": 0,
+    "engagement": 0,
+    "revenueX": 0,
+    "revenueTips": 0,
+    "revenueOther": 0,
+    "postsWeek": 1,
+    "sparkline": [
+      0
+    ]
+  },
+  "posts": [
+    {
+      "id": "2099171747635351938",
+      "title": "The algorithm rewards frequency. Here's a 4-post cadence that doesn't burn ou...",
+      "vertical": "Threads",
+      "impressions": 0,
+      "engagement": 0,
+      "revenue": 0,
+      "postedAt": "2026-09-13T16:22:00.000Z"
+    }
+  ]
+}
