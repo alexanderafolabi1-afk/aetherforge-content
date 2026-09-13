@@ -100,6 +100,7 @@ export function ContentQueuePanel({
   requestPinConfirm: (actionLabel: string) => Promise<boolean>;
 }) {
   const queue = useDeckStore((s) => s.contentQueue);
+  const hydrated = useDeckStore((s) => s.hydrated);
   const verticals = useDeckStore((s) => s.verticals);
   const queuePost = useDeckStore((s) => s.queuePost);
   const removeQueuedPost = useDeckStore((s) => s.removeQueuedPost);
@@ -116,7 +117,7 @@ export function ContentQueuePanel({
   const [syncStatus, setSyncStatus] = useState<{ ok: boolean; message: string; at: string } | null>(
     null,
   );
-  const skipFirstAutoSync = useRef(true);
+  const armedAfterHydration = useRef(false);
   const ghConfigured = hasGithubSyncConfig();
 
   const ordered = [...queue].sort(
@@ -134,10 +135,17 @@ export function ContentQueuePanel({
   };
 
   // Zero-friction bridge: once GitHub Sync is configured, every queue change
-  // auto-commits (debounced) — no export/upload cycle to remember.
+  // auto-commits (debounced) — no export/upload cycle to remember. Gated on
+  // `hydrated` (set only after the app's boot sequence pulls the real queue
+  // down from GitHub first) rather than just "not the first render": a
+  // stale persisted queue changing mid-boot, before that pull resolves,
+  // must never arm this and push itself back up over real server content.
   useEffect(() => {
-    if (skipFirstAutoSync.current) {
-      skipFirstAutoSync.current = false;
+    if (!hydrated) return;
+    if (!armedAfterHydration.current) {
+      // First change seen after hydration is the just-pulled server queue
+      // settling into state — that's not a user edit, don't sync it back.
+      armedAfterHydration.current = true;
       return;
     }
     if (!hasGithubSyncConfig()) return;
@@ -145,7 +153,7 @@ export function ContentQueuePanel({
       void runSync(queue, true);
     }, 2500);
     return () => clearTimeout(timeout);
-  }, [queue]);
+  }, [queue, hydrated]);
 
   return (
     <Card className="h-full" id="content-queue">

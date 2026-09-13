@@ -50,7 +50,11 @@ export function CommandDeck({ onLogout }: { onLogout: () => void }) {
   };
 
   useEffect(() => {
-    void Promise.resolve(useDeckStore.persist.rehydrate()).then(() => {
+    void Promise.resolve(useDeckStore.persist.rehydrate()).then(async () => {
+      // Pull the real queue down before anything can push a stale local
+      // copy back up — must finish before markHydrated lets the rest of the
+      // app (including the Launch Queue's auto-sync effect) render.
+      await useDeckStore.getState().pullQueueFromGithub();
       useDeckStore.getState().markHydrated();
       void useDeckStore.getState().syncLiveData();
     });
