@@ -192,6 +192,18 @@
   }
 }
 
+/*
+ * Safari ignores autocomplete="off" on type="password" inputs and always
+ * shows its Strong Password / AutoFill UI over them — for a short numeric
+ * PIN that UI has nothing useful to offer and gets in the way of typing.
+ * Using a plain input with this instead keeps the dot-masked look without
+ * type="password" ever triggering that overlay. Chromium/WebKit-based
+ * browsers support -webkit-text-security; others just show plain digits.
+ */
+.pin-mask {
+  -webkit-text-security: disc;
+}
+
 .deck-card {
   background: color-mix(in oklab, var(--color-card) 88%, transparent);
   box-shadow: var(--shadow-border);
