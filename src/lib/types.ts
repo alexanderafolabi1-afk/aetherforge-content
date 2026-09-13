@@ -119,6 +119,20 @@ export interface XAutomationStateFile {
   replyLog: ReplyLogEntry[];
 }
 
+/**
+ * One curated-account tweet worth considering a reply to — written by n8n's
+ * Flow D scan to data/reply-candidates.json. Deliberately not auto-replied:
+ * see AUTOMATION_GUIDE.md for why. The PWA only ever displays these.
+ */
+export interface ReplyCandidate {
+  accountUsername: string;
+  tweetId: string;
+  text: string;
+  createdAt: string;
+  url: string;
+  discoveredAt: string;
+}
+
 export interface DeckData {
   commanderName: string;
   stats: Stats;

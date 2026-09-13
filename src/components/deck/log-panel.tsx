@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +29,7 @@ export function LogPanel({
   const logs = useDeckStore((s) => s.revenueLogs);
   const stats = useDeckStore((s) => s.stats);
   const replyLog = useDeckStore((s) => s.replyLog);
+  const replyCandidates = useDeckStore((s) => s.replyCandidates);
 
   const [amount, setAmount] = useState("");
   const [source, setSource] = useState<RevenueSource>("tips");
@@ -52,6 +54,7 @@ export function LogPanel({
             <TabsTrigger value="note">Note</TabsTrigger>
             <TabsTrigger value="telemetry">Telemetry</TabsTrigger>
             <TabsTrigger value="replies">Replies</TabsTrigger>
+            <TabsTrigger value="engage">Engage</TabsTrigger>
           </TabsList>
 
           <TabsContent value="haul" className="grid gap-3">
@@ -231,6 +234,42 @@ export function LogPanel({
                       <p className="mt-1.5 text-sm leading-relaxed">{r.replyText}</p>
                       <p className="mt-1 text-[11px] text-muted-foreground">
                         {formatRelative(r.repliedAt)}
+                      </p>
+                    </li>
+                  ))
+              )}
+            </ul>
+          </TabsContent>
+
+          <TabsContent value="engage" className="grid gap-3">
+            <p className="text-xs text-muted-foreground">
+              Recent posts from your curated list — n8n finds them, you decide if any earns a
+              reply. Aim for 1–2 a day, only when you actually have something sharp to add.
+            </p>
+            <ul className="space-y-2">
+              {replyCandidates.length === 0 ? (
+                <li className="text-sm text-muted-foreground">
+                  No candidates yet. The scan runs twice a day — check back after the next run.
+                </li>
+              ) : (
+                [...replyCandidates]
+                  .sort((a, b) => Date.parse(b.discoveredAt) - Date.parse(a.discoveredAt))
+                  .map((c) => (
+                    <li key={c.tweetId} className="rounded-xl bg-secondary/50 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium">@{c.accountUsername}</p>
+                        <a
+                          href={c.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex shrink-0 items-center gap-1 text-xs text-primary underline underline-offset-2"
+                        >
+                          Reply on X <ExternalLink className="size-3" />
+                        </a>
+                      </div>
+                      <p className="mt-1.5 text-sm leading-relaxed">{c.text}</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {formatRelative(c.createdAt)}
                       </p>
                     </li>
                   ))

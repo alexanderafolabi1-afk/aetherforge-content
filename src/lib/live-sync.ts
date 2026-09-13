@@ -10,7 +10,7 @@
  * is enough, needs no credential, and can't be used to write anything.
  */
 import { getGithubSyncConfig } from "./github-sync";
-import type { LiveMetricsFile, XAutomationStateFile } from "./types";
+import type { LiveMetricsFile, ReplyCandidate, XAutomationStateFile } from "./types";
 
 const FALLBACK_OWNER = "alexanderafolabi1-afk";
 const FALLBACK_REPO = "aetherforge-content";
@@ -42,4 +42,8 @@ export function fetchLiveMetrics(): Promise<LiveMetricsFile | null> {
 
 export function fetchXAutomationState(): Promise<XAutomationStateFile | null> {
   return fetchJson<XAutomationStateFile>("data/x-automation-state.json");
+}
+
+export function fetchReplyCandidates(): Promise<ReplyCandidate[] | null> {
+  return fetchJson<ReplyCandidate[]>("data/reply-candidates.json");
 }
