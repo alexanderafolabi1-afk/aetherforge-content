@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { verifyPin } from "@/lib/pin";
+import { pinInputProps, verifyPin } from "@/lib/pin";
 
 export function PinConfirmDialog({
   open,
@@ -57,12 +57,10 @@ export function PinConfirmDialog({
             <Label htmlFor="pin-confirm-input">PIN</Label>
             <Input
               id="pin-confirm-input"
-              type="tel"
+              {...pinInputProps}
               inputMode="numeric"
-              pattern="[0-9]*"
               autoFocus
               autoComplete="off"
-              className="pin-mask"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
             />
