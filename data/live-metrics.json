@@ -1,27 +1,37 @@
 {
-  "updatedAt": "2026-09-13T16:44:37.555Z",
+  "updatedAt": "2026-09-14T04:00:13.576Z",
   "stats": {
-    "followers": 5,
-    "impressions24h": 0,
-    "impressions7d": 0,
-    "engagement": 0,
+    "followers": 9,
+    "impressions24h": 921,
+    "impressions7d": 921,
+    "engagement": 44.5,
     "revenueX": 0,
     "revenueTips": 0,
     "revenueOther": 0,
-    "postsWeek": 1,
+    "postsWeek": 2,
     "sparkline": [
-      0
+      912,
+      9
     ]
   },
   "posts": [
     {
-      "id": "2099171747635351938",
-      "title": "The algorithm rewards frequency. Here's a 4-post cadence that doesn't burn ou...",
+      "id": "2099201716822352082",
+      "title": "We here now! https://t.co/4KiHa4V8o3",
       "vertical": "Threads",
-      "impressions": 0,
+      "impressions": 9,
+      "engagement": 88.9,
+      "revenue": 0,
+      "postedAt": "2026-09-13T18:21:05.000Z"
+    },
+    {
+      "id": "2099189119058427971",
+      "title": "@donjjazzyy 5",
+      "vertical": "Threads",
+      "impressions": 912,
       "engagement": 0,
       "revenue": 0,
-      "postedAt": "2026-09-13T16:22:00.000Z"
+      "postedAt": "2026-09-13T17:31:01.000Z"
     }
   ]
 }
