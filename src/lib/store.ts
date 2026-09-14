@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { pickDailyLine, CHECK_IN_LINES, MILESTONE_HITS, pickLine } from "./copy";
 import { fetchQueueFromGithub, hasGithubSyncConfig } from "./github-sync";
-import { fetchLiveMetrics, fetchXAutomationState } from "./live-sync";
+import { fetchLiveMetrics, fetchReplyCandidates, fetchXAutomationState } from "./live-sync";
 import { seedDeck } from "./seed";
 import type {
   AstronautMood,
@@ -10,6 +10,7 @@ import type {
   MetricKey,
   Milestone,
   Note,
+  ReplyCandidate,
   ReplyLogEntry,
   RevenueLog,
   RevenueSource,
@@ -34,6 +35,8 @@ interface DeckStore extends DeckData {
   liveMetricsUpdatedAt: string | null;
   /** Autonomous auto-replies n8n has posted, pulled read-only from data/x-automation-state.json. */
   replyLog: ReplyLogEntry[];
+  /** Curated high-signal tweets worth a hand-written reply, pulled read-only from data/reply-candidates.json. */
+  replyCandidates: ReplyCandidate[];
   /** Pulls data/live-metrics.json and data/x-automation-state.json from GitHub and merges what's there into the deck. */
   syncLiveData: () => Promise<void>;
   /**
@@ -134,8 +137,13 @@ export const useDeckStore = create<DeckStore>()(
       toggleAutomation: () => set({ automationActive: !get().automationActive }),
       liveMetricsUpdatedAt: null,
       replyLog: [],
+      replyCandidates: [],
       syncLiveData: async () => {
-        const [metrics, automation] = await Promise.all([fetchLiveMetrics(), fetchXAutomationState()]);
+        const [metrics, automation, candidates] = await Promise.all([
+          fetchLiveMetrics(),
+          fetchXAutomationState(),
+          fetchReplyCandidates(),
+        ]);
         if (metrics) {
           const posts = metrics.posts;
           const verticals = verticalsWithRealCounts(get().verticals, posts);
@@ -151,6 +159,9 @@ export const useDeckStore = create<DeckStore>()(
         }
         if (automation) {
           set({ replyLog: automation.replyLog });
+        }
+        if (candidates) {
+          set({ replyCandidates: candidates });
         }
       },
       pullQueueFromGithub: async () => {
@@ -305,6 +316,7 @@ export const useDeckStore = create<DeckStore>()(
           hydrated: true,
           liveMetricsUpdatedAt: null,
           replyLog: [],
+          replyCandidates: [],
           celebration: {
             title: "Local cache cleared",
             body: "Everything hand-logged in this browser is gone. The next live sync repopulates real numbers.",
@@ -328,6 +340,7 @@ export const useDeckStore = create<DeckStore>()(
         automationActive: state.automationActive,
         liveMetricsUpdatedAt: state.liveMetricsUpdatedAt,
         replyLog: state.replyLog,
+        replyCandidates: state.replyCandidates,
       }),
     },
   ),

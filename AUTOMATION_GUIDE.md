@@ -6,13 +6,16 @@ posting the Launch queue, auto-replying to mentions, and syncing live metrics ba
 Command Deck. There is no manual file export/upload anywhere in this loop; the app and n8n commit
 directly to this repo, and the app reads what n8n commits straight back.
 
-## The three flows, at a glance
+## The four flows, at a glance
 
 | Flow | Trigger | Reads | Writes | Cost |
 | --- | --- | --- | --- | --- |
 | **A — Post the queue** | Every 15 min | `data/content-queue.json` | `data/content-queue.json`, X (new tweet) | Posting is free at every X API tier |
 | **B — Auto-reply to mentions** | Every 30 min | `data/x-automation-state.json`, X mentions | `data/x-automation-state.json`, X (reply tweet) | Reading mentions is billed under pay-as-you-go past Free-tier limits |
 | **C — Daily metrics sync** | Once/day, 8am | X user + recent tweets | `data/live-metrics.json` | 2 read calls/day, same billing note as above |
+| **D — Curated engagement scan** | Twice/day, 10am + 7pm | Recent tweets from a curated account list | `data/reply-candidates.json` | ~33 read calls/day (1 batched ID lookup + 1 per account per run) — the priciest of the four, factor it into your spending cap |
+
+**Flow D is deliberately human-in-the-loop — this is not a missing feature.** A genuinely sharp, non-generic reply to a high-profile account needs real understanding of what they said; that requires an LLM call this template-based workflow doesn't make (no Grok/OpenAI/Anthropic key wired in). Faking it with templated text risks looking exactly like a bot on accounts where that's most damaging. So Flow D only *finds* candidates — recent, substantial (80+ char) posts from your curated list, deduplicated and pruned after 3 days — and the Command Deck's Mission Log → Engage tab shows them with a direct link to reply on X yourself. If you later add a real LLM API key, drafting (still not auto-sending) becomes a reasonable next step; auto-sending to these specific accounts is not recommended regardless.
 
 ```
 Command Deck (browser)  --[GitHub Sync, direct commit]-->  data/content-queue.json
@@ -169,7 +172,8 @@ follow-up piece of work, not something this template does today.
 
 - Live metrics fetch: `src/lib/live-sync.ts`, applied via `syncLiveData()` in `src/lib/store.ts`
 - Live data types: `src/lib/types.ts` (`LiveMetricsFile`, `XAutomationStateFile`, `ReplyLogEntry`)
-- Replies display: `src/components/deck/log-panel.tsx` (Mission Log → Replies tab, read-only)
+- Replies display: `src/components/deck/log-panel.tsx` (Mission Log → Replies and Engage tabs, both read-only)
+- Curated account list: edit the `handles` array in the "Set - Curated Accounts" node (Flow D) directly in n8n — no redeploy needed
 - Queue data model: `src/lib/types.ts` (`ScheduledPost`, `PostLanguage`)
 - Queue actions: `src/lib/store.ts` (`queuePost`, `markQueuePosted`, `skipQueuedPost`, `removeQueuedPost`, `nextQueuedPost`)
 - Queue UI: `src/components/deck/content-queue.tsx` (Launch queue panel, Queue/Preview tabs, Sync to GitHub)

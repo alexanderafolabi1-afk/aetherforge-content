@@ -383,6 +383,122 @@
       "waitBetweenTries": 5000,
       "credentials": { "httpHeaderAuth": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "GitHub Contents Token" } }
     }
+    ,
+    { "parameters": { "content": "### Flow D — Curated engagement scan\nHuman-in-the-loop by design, not a missing feature: genuinely sharp, non-generic replies to high-profile accounts need real judgment an LLM-free workflow can't fake. This only finds candidates and writes them to data/reply-candidates.json — the Command Deck shows them, you write and send the actual reply yourself.", "height": 160, "width": 340 }, "id": "b1000000-0000-4000-8000-000000000093", "name": "Flow D Label", "type": "n8n-nodes-base.stickyNote", "typeVersion": 1, "position": [-40, 1240] },
+    {
+      "parameters": { "rule": { "interval": [{ "field": "hours", "hoursInterval": 24, "triggerAtHour": 10 }, { "field": "hours", "hoursInterval": 24, "triggerAtHour": 19 }] } },
+      "id": "b1000000-0000-4000-8000-000000000030",
+      "name": "Schedule - Twice Daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-40, 1400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Curated accounts for selective engagement — edit this list any time.\nconst handles = ['naval','balajis','pmarca','garrytan','TheRestHistory','DominicSandbrook','RichardDawkins','neiltyson','chamath','Jason','CulturalTutor','willwilkinson','RoryStewartUK','nntaleb','yhazony','saifedean'];\nreturn [{ json: { handles } }];"
+      },
+      "id": "b1000000-0000-4000-8000-000000000031",
+      "name": "Set - Curated Accounts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [180, 1400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.twitter.com/2/users/by?usernames={{ $json.handles.join(',') }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twitterOAuth1Api",
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000032",
+      "name": "Resolve Account IDs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, 1400],
+      "notes": "One batched READ call resolves all 16 handles to numeric IDs at once — far cheaper than 16 separate lookups.",
+      "credentials": { "twitterOAuth1Api": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "X OAuth1 API" } }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const res = $input.first().json;\nconst users = res.data || [];\nreturn users.map((u) => ({ json: { id: u.id, username: u.username } }));"
+      },
+      "id": "b1000000-0000-4000-8000-000000000033",
+      "name": "Prepare Account List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [620, 1400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.twitter.com/2/users/{{ $json.id }}/tweets?max_results=5&exclude=retweets,replies&tweet.fields=created_at,public_metrics",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twitterOAuth1Api",
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000034",
+      "name": "Get Recent Tweets Per Account",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [840, 1400],
+      "notes": "One READ call per curated account, twice a day — 32 calls/day total. Factor this into your X billing cap alongside the mentions/metrics flows.",
+      "credentials": { "twitterOAuth1Api": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "X OAuth1 API" } }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.github.com/repos/alexanderafolabi1-afk/aetherforge-content/contents/data/reply-candidates.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000035",
+      "name": "Fetch Existing Candidates (GitHub)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1060, 1400],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput",
+      "notes": "continueOnFail intentional: doesn't exist on the very first run.",
+      "credentials": { "httpHeaderAuth": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "GitHub Contents Token" } }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// One candidate per account at most, per scan — recent, substantial (not a\n// one-liner), never a retweet/reply (excluded at the API level already).\nconst accounts = $('Prepare Account List').all();\nconst tweetResponses = $('Get Recent Tweets Per Account').all();\nconst sixteenHoursMs = 16 * 60 * 60 * 1000;\n\nconst fresh = [];\naccounts.forEach((acc, i) => {\n  const res = tweetResponses[i] && tweetResponses[i].json;\n  const tweets = (res && res.data) || [];\n  const candidate = tweets.find((t) => {\n    const age = Date.now() - new Date(t.created_at).getTime();\n    return age <= sixteenHoursMs && t.text && t.text.length >= 60;\n  });\n  if (candidate) {\n    fresh.push({\n      accountUsername: acc.json.username,\n      tweetId: candidate.id,\n      text: candidate.text,\n      createdAt: candidate.created_at,\n      url: `https://x.com/${acc.json.username}/status/${candidate.id}`,\n      discoveredAt: new Date().toISOString(),\n    });\n  }\n});\n\nconst existingFetch = $('Fetch Existing Candidates (GitHub)').first().json;\nlet sha;\nlet existing = [];\nif (existingFetch && existingFetch.content) {\n  sha = existingFetch.sha;\n  try {\n    existing = JSON.parse(Buffer.from(existingFetch.content, 'base64').toString('utf-8'));\n  } catch {\n    existing = [];\n  }\n}\n\n// Drop stale candidates automatically if they're still sitting unreplied\n// after 3 days, and never keep two entries for the same tweet.\nconst seenIds = new Set(fresh.map((c) => c.tweetId));\nconst keptExisting = existing.filter((c) => !seenIds.has(c.tweetId));\nconst threeDaysAgoMs = Date.now() - 3 * 24 * 60 * 60 * 1000;\nconst merged = [...fresh, ...keptExisting]\n  .filter((c) => new Date(c.discoveredAt || c.createdAt).getTime() >= threeDaysAgoMs)\n  .slice(0, 40);\n\nconst content = Buffer.from(JSON.stringify(merged, null, 2), 'utf-8').toString('base64');\nreturn [{ json: { sha, content, message: `chore: refresh engagement candidates (${merged.length})` } }];"
+      },
+      "id": "b1000000-0000-4000-8000-000000000036",
+      "name": "Build Candidates Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1280, 1400]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "https://api.github.com/repos/alexanderafolabi1-afk/aetherforge-content/contents/data/reply-candidates.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"message\": $json.message, \"content\": $json.content, \"sha\": $json.sha } }}",
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000037",
+      "name": "Commit Candidates (GitHub)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1500, 1400],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": { "httpHeaderAuth": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "GitHub Contents Token" } }
+    }
   ],
   "connections": {
     "Schedule - Every 15 Minutes": { "main": [[{ "node": "Fetch Content Queue (GitHub)", "type": "main", "index": 0 }]] },
@@ -407,7 +523,15 @@
     "Get Recent Tweets": { "main": [[{ "node": "Build Live Metrics Payload", "type": "main", "index": 0 }]] },
     "Build Live Metrics Payload": { "main": [[{ "node": "Fetch Existing Live Metrics (for sha)", "type": "main", "index": 0 }]] },
     "Fetch Existing Live Metrics (for sha)": { "main": [[{ "node": "Build Commit Body", "type": "main", "index": 0 }]] },
-    "Build Commit Body": { "main": [[{ "node": "Commit Live Metrics (GitHub)", "type": "main", "index": 0 }]] }
+    "Build Commit Body": { "main": [[{ "node": "Commit Live Metrics (GitHub)", "type": "main", "index": 0 }]] },
+
+    "Schedule - Twice Daily": { "main": [[{ "node": "Set - Curated Accounts", "type": "main", "index": 0 }]] },
+    "Set - Curated Accounts": { "main": [[{ "node": "Resolve Account IDs", "type": "main", "index": 0 }]] },
+    "Resolve Account IDs": { "main": [[{ "node": "Prepare Account List", "type": "main", "index": 0 }]] },
+    "Prepare Account List": { "main": [[{ "node": "Get Recent Tweets Per Account", "type": "main", "index": 0 }]] },
+    "Get Recent Tweets Per Account": { "main": [[{ "node": "Fetch Existing Candidates (GitHub)", "type": "main", "index": 0 }]] },
+    "Fetch Existing Candidates (GitHub)": { "main": [[{ "node": "Build Candidates Payload", "type": "main", "index": 0 }]] },
+    "Build Candidates Payload": { "main": [[{ "node": "Commit Candidates (GitHub)", "type": "main", "index": 0 }]] }
   },
   "active": false,
   "settings": {
