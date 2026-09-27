@@ -1,222 +1,152 @@
 [
   {
-    "id": "queue-1",
-    "title": "The algorithm rewards frequency. Here's a 4-post cadence that doesn't burn out.",
-    "body": "Thread breaking down the posting rhythm that got the last **30 days** moving. Full breakdown in the [linked thread](https://x.com).",
-    "vertical": "Threads",
-    "language": "en",
-    "scheduledFor": "2026-09-13T08:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-12T17:25:27.559Z"
-  },
-  {
-    "id": "queue-5",
-    "title": "Confidence isn't loud. It's the quiet decision to stop asking for permission you never needed.",
+    "id": "queue-20260927-1",
+    "title": "Silence is not empty. It is the room where real decisions are made. Most people never enter it.",
     "body": "",
     "vertical": "Threads",
     "language": "en",
-    "scheduledFor": "2026-09-14T09:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
+    "scheduledFor": "2026-09-27T17:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-27T16:51:00.000Z"
   },
   {
-    "id": "queue-6",
-    "title": "Everyone wants the following. Almost no one wants the thousand invisible mornings that build it.",
+    "id": "queue-20260927-2",
+    "title": "The algorithm does not reward noise. It rewards the person who keeps showing up with a spine.",
     "body": "",
     "vertical": "Threads",
     "language": "en",
-    "scheduledFor": "2026-09-14T13:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
+    "scheduledFor": "2026-09-27T19:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-27T16:51:00.000Z"
   },
   {
-    "id": "queue-7",
-    "title": "The work that compounds is never the work that trends. Build the thing, not the moment.",
-    "body": "",
-    "vertical": "Longform",
-    "language": "en",
-    "scheduledFor": "2026-09-14T17:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
-  },
-  {
-    "id": "queue-8",
-    "title": "Taste is just judgment you've earned the hard way. Nobody skips the reps.",
-    "body": "",
-    "vertical": "Threads",
-    "language": "en",
-    "scheduledFor": "2026-09-14T21:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
-  },
-  {
-    "id": "queue-9",
-    "title": "You don't need a bigger platform. You need a sharper point of view and the nerve to hold it.",
-    "body": "",
-    "vertical": "Experiments",
-    "language": "en",
-    "scheduledFor": "2026-09-15T09:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
-  },
-  {
-    "id": "queue-10",
-    "title": "The quiet ones building in silence right now are the loud ones you'll hear about in a year.",
-    "body": "",
-    "vertical": "Threads",
-    "language": "en",
-    "scheduledFor": "2026-09-15T13:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
-  },
-  {
-    "id": "queue-11",
-    "title": "Nobody remembers who was careful. They remember who shipped.",
-    "body": "",
-    "vertical": "Threads",
-    "language": "en",
-    "scheduledFor": "2026-09-15T17:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
-  },
-  {
-    "id": "queue-12",
-    "title": "El silencio no es ausencia. Es donde se construye todo lo que despues parece talento.",
-    "body": "",
-    "vertical": "Longform",
-    "language": "es",
-    "scheduledFor": "2026-09-15T21:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
-  },
-  {
-    "id": "queue-13",
-    "title": "Le pouvoir n'appartient pas a celui qui parle fort. Il appartient a celui qui decide en silence.",
-    "body": "",
-    "vertical": "Threads",
-    "language": "fr",
-    "scheduledFor": "2026-09-16T09:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
-  },
-  {
-    "id": "queue-14",
-    "title": "才能は言い訳だ。継続こそが唯一の証明である。",
-    "body": "",
-    "vertical": "Experiments",
-    "language": "ja",
-    "scheduledFor": "2026-09-16T13:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
-  },
-  {
-    "id": "queue-15",
-    "title": "Ninguem lembra de quem foi confortavel. Lembram de quem foi inevitavel.",
-    "body": "",
-    "vertical": "Longform",
-    "language": "pt",
-    "scheduledFor": "2026-09-16T17:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
-  },
-  {
-    "id": "queue-16",
-    "title": "Real loyalty doesn't ask you to shrink. It asks you to become more of yourself, on purpose.",
-    "body": "",
-    "vertical": "Threads",
-    "language": "en",
-    "scheduledFor": "2026-09-16T21:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
-  },
-  {
-    "id": "queue-17",
-    "title": "El dinero no compra clase. La clase decide como se gasta el dinero.",
+    "id": "queue-20260927-3",
+    "title": "El poder real no se anuncia. Se nota en quien decide sin pedir permiso.",
     "body": "",
     "vertical": "Threads",
     "language": "es",
-    "scheduledFor": "2026-09-17T09:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
+    "scheduledFor": "2026-09-27T21:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-27T16:51:00.000Z"
   },
   {
-    "id": "queue-18",
-    "title": "L'art n'est pas fait pour plaire a tout le monde. Il est fait pour etre vrai, meme seul.",
+    "id": "queue-20260928-1",
+    "title": "Comfort is a quiet liar. Discomfort tells the truth. Choose which voice you trust with your life.",
     "body": "",
-    "vertical": "Experiments",
-    "language": "fr",
-    "scheduledFor": "2026-09-17T13:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
+    "vertical": "Longform",
+    "language": "en",
+    "scheduledFor": "2026-09-28T08:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-27T16:51:00.000Z"
   },
   {
-    "id": "queue-19",
-    "title": "孤独は罰ではない。選ばれた者だけが座れる玉座だ。",
-    "body": "",
-    "vertical": "Experiments",
-    "language": "ja",
-    "scheduledFor": "2026-09-17T17:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
-  },
-  {
-    "id": "queue-20",
-    "title": "Curiosidade nao e uma fase da infancia. E o unico motor que nunca enferruja.",
-    "body": "",
-    "vertical": "Experiments",
-    "language": "pt",
-    "scheduledFor": "2026-09-17T21:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
-  },
-  {
-    "id": "queue-21",
-    "title": "The body keeps the score nobody sees. Show up for it before it forces you to.",
+    "id": "queue-20260928-2",
+    "title": "Nobody remembers the careful ones. They remember the ones who shipped while everyone else was still planning.",
     "body": "",
     "vertical": "Threads",
     "language": "en",
-    "scheduledFor": "2026-09-18T09:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
+    "scheduledFor": "2026-09-28T12:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-27T16:51:00.000Z"
   },
   {
-    "id": "queue-22",
-    "title": "El verdadero poder no necesita anunciarse. Se nota en quien decide sin pedir permiso.",
+    "id": "queue-20260928-3",
+    "title": "La solitude n'est pas un vide. C'est un trône. Peu de gens osent s'y asseoir.",
+    "body": "",
+    "vertical": "Experiments",
+    "language": "fr",
+    "scheduledFor": "2026-09-28T16:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-27T16:51:00.000Z"
+  },
+  {
+    "id": "queue-20260928-4",
+    "title": "Your body is the only property you cannot sell and cannot buy back. Treat it like the asset it is.",
     "body": "",
     "vertical": "Threads",
-    "language": "es",
-    "scheduledFor": "2026-09-18T13:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
+    "language": "en",
+    "scheduledFor": "2026-09-28T20:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-27T16:51:00.000Z"
   },
   {
-    "id": "queue-23",
-    "title": "Construis ce qui survit a tes excuses. Le reste n'est que du bruit avec une date limite.",
+    "id": "queue-20260929-1",
+    "title": "Taste is just judgment paid for in full. Nobody skips the price.",
     "body": "",
-    "vertical": "Longform",
-    "language": "fr",
-    "scheduledFor": "2026-09-18T17:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
+    "vertical": "Threads",
+    "language": "en",
+    "scheduledFor": "2026-09-29T09:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-27T16:51:00.000Z"
   },
   {
-    "id": "queue-24",
+    "id": "queue-20260929-2",
     "title": "計画は美しい。実行だけが本物だ。",
     "body": "",
     "vertical": "Threads",
     "language": "ja",
-    "scheduledFor": "2026-09-18T21:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
+    "scheduledFor": "2026-09-29T13:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-27T16:51:00.000Z"
   },
   {
-    "id": "queue-25",
-    "title": "Comfort lies to you quietly. Discomfort tells you the truth loudly. Choose which voice you trust.",
+    "id": "queue-20260929-3",
+    "title": "Ninguem lembra de quem foi confortavel. Lembram de quem foi inevitavel.",
+    "body": "",
+    "vertical": "Longform",
+    "language": "pt",
+    "scheduledFor": "2026-09-29T17:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-27T16:51:00.000Z"
+  },
+  {
+    "id": "queue-20260929-4",
+    "title": "Follow the people who make you sharper, not the ones who make you comfortable. One builds you. The other keeps you small.",
+    "body": "",
+    "vertical": "Threads",
+    "language": "en",
+    "scheduledFor": "2026-09-29T21:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-27T16:51:00.000Z"
+  },
+  {
+    "id": "queue-20260930-1",
+    "title": "The work that compounds never looks urgent. That is why almost no one does it.",
+    "body": "",
+    "vertical": "Threads",
+    "language": "en",
+    "scheduledFor": "2026-09-30T08:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-27T16:51:00.000Z"
+  },
+  {
+    "id": "queue-20260930-2",
+    "title": "El dinero no compra clase. La clase decide como se gasta el dinero.",
+    "body": "",
+    "vertical": "Threads",
+    "language": "es",
+    "scheduledFor": "2026-09-30T12:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-27T16:51:00.000Z"
+  },
+  {
+    "id": "queue-20260930-3",
+    "title": "Kill the version of you that needs applause to keep working. It is the only thing standing in your way.",
+    "body": "",
+    "vertical": "Livestreams",
+    "language": "en",
+    "scheduledFor": "2026-09-30T16:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-27T16:51:00.000Z"
+  },
+  {
+    "id": "queue-20260930-4",
+    "title": "Build the thing that outlives your excuses. Everything else is just noise with a deadline.",
     "body": "",
     "vertical": "Longform",
     "language": "en",
-    "scheduledFor": "2026-09-19T09:00:00.000Z",
-    "status": "posted",
-    "createdAt": "2026-09-13T17:15:00.000Z"
+    "scheduledFor": "2026-09-30T20:00:00.000Z",
+    "status": "queued",
+    "createdAt": "2026-09-27T16:51:00.000Z"
   }
 ]
